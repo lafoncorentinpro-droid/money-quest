@@ -1,6 +1,5 @@
 import { addDays, formatDateLong, formatDateShort, periodLabel, periodRange } from '../domain/dates';
 import { goalBalance, monthSummary, recentByDay, totalSavings, type MonthSummary } from '../domain/finance';
-import { levelProgress, missionsView, regionForLevel, totalXp } from '../domain/game';
 import { percent } from '../domain/money';
 import { pendingOccurrences } from '../domain/recurring';
 import { useStore } from '../store/store';
@@ -74,9 +73,6 @@ export function Home() {
   const { data, period, today, money } = useStore();
   const open = useSheets();
   const s = monthSummary(data, period);
-  const xp = totalXp(data.progress);
-  const lp = levelProgress(xp);
-  const region = regionForLevel(lp.level);
   const hasData = data.incomes.length + data.expenses.length + data.recurring.length + data.movements.length > 0 || Object.keys(data.budgets).length > 0;
   const fox = foxMessage(s, hasData, data.settings.nickname);
   const { alerts } = data.settings;
@@ -84,7 +80,6 @@ export function Home() {
   const upcoming = pendingOccurrences(data, { start: addDays(today, -31), end: addDays(today, 14) });
   const overdue = upcoming.filter((u) => u.date < today);
   const soon = upcoming.filter((u) => u.date >= today);
-  const missions = missionsView(data, period).filter((m) => m.active && !m.done).slice(0, 3);
   const loggedToday = data.progress.xpEvents.some((e) => e.key === `saisie:${today}`);
   const warnCats = s.categories.filter((c) => c.state !== 'ok');
   const catName = (id: string) => data.categories.find((c) => c.id === id);
@@ -102,9 +97,6 @@ export function Home() {
           </div>
           <h1 style={{ fontFamily: 'var(--font-title)', margin: 0, fontSize: 26 }}>Mon QG</h1>
         </div>
-        <button type="button" className="chip" onClick={() => go('monde')} aria-label={`Niveau ${lp.level}, voir le monde`}>
-          ⭐ Niv. {lp.level}
-        </button>
       </header>
 
       <section className="card stack" aria-labelledby="dispo">
@@ -270,33 +262,6 @@ export function Home() {
           </div>
         </section>
       )}
-
-      <section className="card stack" aria-labelledby="xp">
-        <div className="row-between">
-          <h2 id="xp">Niveau {lp.level}</h2>
-          <span className="tiny">{region.name}</span>
-        </div>
-        <Progress value={lp.into} max={lp.needed || 1} tone="xp" label="Progression vers le niveau suivant" />
-        <div className="tiny">{lp.needed ? `${lp.into} / ${lp.needed} XP vers le niveau ${lp.level + 1}` : 'Niveau maximum atteint !'}</div>
-        {missions.length > 0 && (
-          <div className="stack" style={{ gap: 6 }}>
-            <h3 className="small muted">Missions en cours</h3>
-            {missions.map((m) => (
-              <div key={m.mission.id} className="row small">
-                <span aria-hidden>🧭</span>
-                <span className="grow">
-                  {m.mission.title}
-                  {m.progressLabel && <span className="tiny"> · {m.progressLabel}</span>}
-                </span>
-                <span className="tag tag-gold">+{m.mission.xp} XP</span>
-              </div>
-            ))}
-          </div>
-        )}
-        <button type="button" className="link" onClick={() => go('monde')}>
-          Explorer le monde →
-        </button>
-      </section>
 
       {data.goals.length > 0 && (
         <section className="card" aria-labelledby="gl">
