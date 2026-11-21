@@ -63,7 +63,7 @@ function GoalList() {
       ) : (
         data.goals.map((g) => {
           const bal = goalBalance(g.id, data.movements);
-          const reached = bal >= g.target;
+          const reached = g.target > 0 && bal >= g.target;
           const left = monthsLeft(today, g.targetDate);
           return (
             <button key={g.id} type="button" className="card stack" style={{ textAlign: 'left', width: '100%' }} onClick={() => go(`tresors/${g.id}`)}>
@@ -77,11 +77,11 @@ function GoalList() {
                     {reached ? <span className="tag tag-ok">🏆 Atteint</span> : g.paused ? <span className="tag">⏸ En pause</span> : <span className="tag">En cours</span>}
                   </div>
                   <div className="small num muted">
-                    {money(bal)} sur {money(g.target)} · {percent(bal, g.target)} %
+                    {g.target > 0 ? `${money(bal)} sur ${money(g.target)} · ${percent(bal, g.target)} %` : `${money(bal)} · sans montant cible`}
                   </div>
                 </div>
               </div>
-              <Progress value={bal} max={g.target} tone={reached ? 'ok' : undefined} label={`Progression ${g.name}`} />
+              {g.target > 0 && <Progress value={bal} max={g.target} tone={reached ? 'ok' : undefined} label={`Progression ${g.name}`} />}
               {g.targetDate && !reached && (
                 <div className="tiny">
                   Objectif : {formatDateShort(g.targetDate)} — environ {money(monthlyNeeded(bal, g.target, left))} / mois (estimation)
@@ -109,7 +109,7 @@ function GoalDetail({ id }: { id: string }) {
     );
   }
   const bal = goalBalance(g.id, data.movements);
-  const reached = bal >= g.target;
+  const reached = g.target > 0 && bal >= g.target;
   const history = data.movements.filter((m) => m.goalId === g.id || m.toGoalId === g.id).sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
   const name = (gid?: string) => data.goals.find((x) => x.id === gid)?.name ?? '?';
 
@@ -130,15 +130,15 @@ function GoalDetail({ id }: { id: string }) {
         </div>
         <div className="hero-amount num">{money(bal)}</div>
         <div className="muted num">
-          sur {money(g.target)} · {percent(bal, g.target)} %
+          {g.target > 0 ? `sur ${money(g.target)} · ${percent(bal, g.target)} %` : "sans montant cible : tu peux en fixer un via « Modifier »"}
         </div>
-        <Progress value={bal} max={g.target} tone={reached ? 'ok' : undefined} label="Progression" />
+        {g.target > 0 && <Progress value={bal} max={g.target} tone={reached ? 'ok' : undefined} label="Progression" />}
         {reached ? (
           <div className="notice notice-success" style={{ justifyContent: 'center' }}>
             🏆 Trésor rempli{g.reachedAt ? ` le ${formatDateShort(g.reachedAt)}` : ''} ! Bravo.
           </div>
         ) : (
-          <div className="small muted">Il reste {money(g.target - bal)}</div>
+          g.target > 0 && <div className="small muted">Il reste {money(g.target - bal)}</div>
         )}
         {g.paused && <span className="tag">⏸ En pause</span>}
         {g.targetDate && <div className="tiny">Date cible : {formatDateLong(g.targetDate)}</div>}
