@@ -137,7 +137,7 @@ export function EnvMonthForm({ period, onClose }: { period: PeriodKey; onClose: 
 type Mode = 'depense' | 'ajout' | 'correction';
 
 export function EnvForm({ envKey, onClose, onTransfer, onEditProject }: { envKey: EnvelopeKey; onClose: () => void; onTransfer: () => void; onEditProject: () => void }) {
-  const { data, dispatch, toast, money, today } = useStore();
+  const { data, dispatch, toast, money, today, month, period } = useStore();
   const name = useEnvName();
   const env = data.envelopes;
   const bal = balance(env, envKey);
@@ -145,6 +145,10 @@ export function EnvForm({ envKey, onClose, onTransfer, onEditProject }: { envKey
   const [mode, setMode] = useState<Mode>(envKey === EPARGNE || isProj ? 'ajout' : 'depense');
   const amount = useAmount();
   const [note, setNote] = useState('');
+  // Projet : l'argent ajouté est toujours pris sur une semaine ou sur les achats divers du mois affiché.
+  const sources: EnvelopeKey[] = env.months[month] ? [...Array.from({ length: WEEKS }, (_, i) => weekKey(month, i + 1)), diversKey(month)] : [];
+  const [source, setSource] = useState<EnvelopeKey>(weekKey(month, month === period ? weekOfDate(today) : 1));
+  const fromSource = isProj && mode === 'ajout';
   const lv = projectView(env, envKey);
   const paidLabel = envKey === 'laser' ? 'Séance payée' : 'Achat payé';
   const history = env.tx
@@ -160,12 +164,19 @@ export function EnvForm({ envKey, onClose, onTransfer, onEditProject }: { envKey
       const diff = amount.cents - bal;
       if (diff === 0) return onClose();
       ok = dispatch({ type: 'env/tx/add', tx: { date: today, kind: 'correction', ...(diff > 0 ? { to: envKey } : { from: envKey }), amount: Math.abs(diff), note: 'Correction manuelle' } });
+    } else if (fromSource) {
+      if (amount.cents === 0) return;
+      if (!sources.length) return toast('Crée d’abord le mois pour pouvoir y prendre de l’argent.', 'error');
+      ok = dispatch({ type: 'env/tx/add', tx: { date: today, kind: 'transfert', from: source, to: envKey, amount: amount.cents, note } });
     } else {
       if (amount.cents === 0) return;
       ok = dispatch({ type: 'env/tx/add', tx: { date: today, kind: mode, ...(mode === 'depense' ? { from: envKey } : { to: envKey }), amount: amount.cents, note } });
     }
     if (ok) {
-      toast(mode === 'depense' ? `−${money(amount.cents)} sur ${name(envKey)}` : mode === 'ajout' ? `+${money(amount.cents)} ajoutés` : 'Solde corrigé', 'success');
+      toast(
+        fromSource ? `${money(amount.cents)} : ${name(source)} → ${name(envKey)}` : mode === 'depense' ? `−${money(amount.cents)} sur ${name(envKey)}` : mode === 'ajout' ? `+${money(amount.cents)} ajoutés` : 'Solde corrigé',
+        'success'
+      );
       onClose();
     }
   };
@@ -208,6 +219,23 @@ export function EnvForm({ envKey, onClose, onTransfer, onEditProject }: { envKey
           ))}
         </div>
         <AmountField label={mode === 'correction' ? 'Nouveau solde' : mode === 'depense' ? 'Montant dépensé' : 'Montant ajouté'} amount={amount} big autoFocus allowZero={mode === 'correction'} />
+        {fromSource && (
+          <div className="field">
+            <span>Pris sur</span>
+            {sources.length ? (
+              <div className="env-pick" role="group" aria-label="Pris sur">
+                {sources.map((k) => (
+                  <button key={k} type="button" className="env-chip" aria-pressed={source === k} onClick={() => setSource(k)}>
+                    <span className="ellipsis">{name(k)}</span>
+                    <strong className="num">{money(balance(env, k))}</strong>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <small className="tiny">Le mois affiché n’est pas encore créé : crée-le pour pouvoir y prendre de l’argent.</small>
+            )}
+          </div>
+        )}
         {mode !== 'correction' && (
           <Field label="Note (facultatif)">
             <input className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder={mode === 'depense' ? 'Ex. Courses' : 'Ex. Reste de la semaine'} maxLength={60} />
