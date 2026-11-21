@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { formatDateShort, inRange, parsePeriod, periodLabel, shiftPeriod } from '../domain/dates';
 import { INCOME_TYPE_LABEL } from '../domain/defaults';
-import { goalBalance, incomeUsage, monthFlow } from '../domain/finance';
-import { centsToInput, parseAmount, percent } from '../domain/money';
+import { incomeUsage, monthFlow } from '../domain/finance';
 import { pendingOccurrences } from '../domain/recurring';
 import type { PeriodKey } from '../domain/types';
 import { useStore } from '../store/store';
@@ -65,9 +64,8 @@ export function StepNav({ active }: { active: string }) {
   const { data, month } = useStore();
   const f = monthFlow(data, month);
   const steps: [string, string, boolean][] = [
-    ['revenus', '1 · Revenus', f.stage !== 'revenus'],
+    ['revenus', '1 · Budget de base', f.stage !== 'revenus'],
     ['depenses', '2 · Dépenses', f.stage === 'epargne' || f.stage === 'complet'],
-    ['epargne', '3 · Épargne', f.stage === 'complet'],
     ['bilan', 'Bilan', false]
   ];
   return (
@@ -89,18 +87,14 @@ function MonthTotals() {
   const { data, month, money } = useStore();
   const f = monthFlow(data, month);
   return (
-    <div className="grid-3">
+    <div className="grid-2">
       <div className="stat">
-        <div className="label">Revenus</div>
+        <div className="label">Budget de base</div>
         <div className="value num pos">{money(f.incomesReceived)}</div>
       </div>
       <div className="stat">
         <div className="label">Dépenses</div>
         <div className="value num">{money(f.expensesPaid)}</div>
-      </div>
-      <div className="stat">
-        <div className="label">Épargne</div>
-        <div className="value num">{money(f.savingsNet)}</div>
       </div>
     </div>
   );
@@ -116,7 +110,7 @@ export function MonthOverview() {
   const label = periodLabel(month, sd);
   const fox =
     f.stage === 'revenus'
-      ? { mood: 'accueil' as const, text: `Une nouvelle aventure commence ! Ouvrons le journal de ${label} avec tes revenus.` }
+      ? { mood: 'accueil' as const, text: `Une nouvelle aventure commence ! Ouvrons le journal de ${label} avec ton budget de base.` }
       : f.stage === 'depenses'
         ? { mood: 'concentre' as const, text: 'Les ressources du mois sont notées. Suivons maintenant les pièces utilisées.' }
         : f.stage === 'epargne'
@@ -127,12 +121,12 @@ export function MonthOverview() {
     {
       k: 'revenus',
       n: 1,
-      title: 'Revenus',
+      title: 'Budget de base',
       icon: 'arrow-down-circle' as const,
       value: money(f.incomesReceived),
       sub: f.incomesExpected > f.incomesReceived ? `${money(f.incomesExpected - f.incomesReceived)} encore attendus` : data.incomes.length ? 'Ressources du mois' : 'À enregistrer en premier',
       action: () => open({ kind: 'income' }),
-      actionLabel: '+ Revenu'
+      actionLabel: '+ Ajouter au budget'
     },
     {
       k: 'depenses',
@@ -143,16 +137,6 @@ export function MonthOverview() {
       sub: f.expensesPlanned > 0 ? `+ ${money(f.expensesPlanned)} prévues` : 'Dépenses payées',
       action: () => open({ kind: 'expense' }),
       actionLabel: '+ Dépense'
-    },
-    {
-      k: 'epargne',
-      n: 3,
-      title: 'Épargne',
-      icon: 'chest' as const,
-      value: money(f.savingsNet),
-      sub: f.savingsTarget ? `${percent(f.savingsNet, f.savingsTarget)} % de l’objectif (${money(f.savingsTarget)})` : 'Mise de côté du mois',
-      action: () => open({ kind: 'movement' }),
-      actionLabel: '+ Versement'
     }
   ];
 
@@ -175,7 +159,7 @@ export function MonthOverview() {
           </strong>
         </div>
         <p className="tiny" style={{ margin: 0 }}>
-          Revenus reçus − dépenses payées − épargne versée + retraits d’épargne.
+          Budget de base − dépenses payées.
           {f.extras !== 0 && ` Avec le report / solde de départ : ${money(f.resteDisponible + f.extras)}.`}
         </p>
       </section>
@@ -217,7 +201,7 @@ export function MonthOverview() {
           );
         })}
         <li className="card step-card">
-          <button type="button" className="step-main" onClick={() => go('argent/bilan')}>
+          <button type="button" className="step-main" onClick={() => go('graphiques')}>
             <span className="step-num" aria-hidden>
               ★
             </span>
@@ -227,7 +211,7 @@ export function MonthOverview() {
             <span className="grow" style={{ textAlign: 'left' }}>
               <strong>Bilan du mois</strong>
               <span className="tiny" style={{ display: 'block' }}>
-                Synthèse, taux d’épargne{f.savingsRate !== null ? ` : ${f.savingsRate.toLocaleString('fr-FR')} %` : ''}, comparaison
+                Ce qu’il te reste, en graphique
               </span>
             </span>
             <Icon name="chevron-right" size={18} className="muted" />
@@ -235,25 +219,6 @@ export function MonthOverview() {
         </li>
       </ol>
 
-      <section className="card" aria-labelledby="tools">
-        <div className="card-head">
-          <h2 id="tools">Outils</h2>
-        </div>
-        <div className="tool-grid">
-          {[
-            ['operations', '📋', 'Toutes les opérations'],
-            ['budget', '🎯', 'Budget par catégorie'],
-            ['recurrences', '🔁', 'Récurrences'],
-            ['calendrier', '📅', 'Calendrier'],
-            ['stats', '📊', 'Statistiques'],
-            ['simulateur', '🔮', 'Simulateur']
-          ].map(([k, i, l]) => (
-            <button key={k} type="button" className="btn" onClick={() => go(`argent/${k}`)}>
-              <span aria-hidden>{i}</span> {l}
-            </button>
-          ))}
-        </div>
-      </section>
     </>
   );
 }
@@ -274,13 +239,13 @@ export function IncomesStep() {
       <StepNav active="revenus" />
       <section className="card stack">
         <div className="row-between">
-          <h2>Mes revenus — {shortLabel(month)}</h2>
+          <h2>Mon budget de base — {shortLabel(month)}</h2>
         </div>
         {incomes.length === 0 && pending.length === 0 ? (
           <div className="stack center">
             <Fox mood="accueil" size={80} equipped={data.progress.equipped} animate={data.settings.animations} />
             <p className="muted" style={{ margin: 0 }}>
-              Ce mois n’a pas encore de revenus. Commence par là : salaire, prime, aide, activité secondaire… Tu peux en ajouter plusieurs.
+              Ce mois n’a pas encore de budget de base. Ajoute ce qui rentre : salaire, prime, aide… Tu peux en ajouter plusieurs.
             </p>
           </div>
         ) : (
@@ -310,7 +275,7 @@ export function IncomesStep() {
                       className="btn btn-sm btn-soft"
                       onClick={() => {
                         dispatch({ type: 'income/update', income: { ...i, status: 'recu' } });
-                        toast('Revenu marqué comme reçu', 'success');
+                        toast('Marqué comme reçu', 'success');
                       }}
                     >
                       Marquer reçu
@@ -351,13 +316,13 @@ export function IncomesStep() {
           </div>
         </div>
         <button type="button" className="btn btn-primary btn-block" onClick={() => open({ kind: 'income' })}>
-          <Icon name="plus" size={20} /> Ajouter un revenu
+          <Icon name="plus" size={20} /> Ajouter au budget de base
         </button>
         <button type="button" className="btn btn-block" onClick={() => open({ kind: 'recurring', recKind: 'income' })}>
-          <Icon name="repeat" size={20} /> Revenu qui revient chaque mois
+          <Icon name="repeat" size={20} /> Montant qui revient chaque mois
         </button>
         <p className="tiny" style={{ margin: 0 }}>
-          Un revenu n’est jamais recopié dans un autre mois, sauf si tu crées un revenu récurrent.
+          Un montant n’est jamais recopié dans un autre mois, sauf s’il revient chaque mois.
         </p>
       </section>
       {(incomes.length > 0 || pending.length > 0) && (
@@ -409,7 +374,7 @@ export function ExpensesStep() {
       <section className="card stack" aria-labelledby="rev">
         <div className="row-between">
           <h2 id="rev" className="small muted" style={{ fontFamily: 'var(--font)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-            Mes revenus pour ce mois
+            Mon budget de base pour ce mois
           </h2>
           <strong className="num">{money(f.incomesExpected)}</strong>
         </div>
@@ -417,9 +382,9 @@ export function ExpensesStep() {
           <div className="notice notice-gold small">
             <span aria-hidden>💡</span>
             <span>
-              Aucun revenu pour {shortLabel(month)}.{' '}
+              Pas de budget de base pour {shortLabel(month)}.{' '}
               <button type="button" className="link" onClick={() => go('argent/revenus')}>
-                Commencer par les revenus
+                L’ajouter
               </button>{' '}
               (tu peux quand même noter des dépenses).
             </span>
@@ -508,166 +473,7 @@ export function ExpensesStep() {
           </div>
         )}
       </section>
-      <button type="button" className="btn btn-soft btn-block" onClick={() => go('argent/epargne')}>
-        Étape suivante : l’épargne <Icon name="chevron-right" size={18} />
-      </button>
-    </>
-  );
-}
-
-/* ======================= Étape 3 : Épargne ======================= */
-
-export function SavingsStep() {
-  const { data, month, money, dispatch, toast } = useStore();
-  const open = useSheets();
-  const r = useMonthRange();
-  const f = monthFlow(data, month);
-  const budget = data.budgets[month];
-  const [target, setTarget] = useState(f.savingsTarget ? centsToInput(f.savingsTarget) : '');
-  useEffect(() => setTarget(f.savingsTarget ? centsToInput(f.savingsTarget) : ''), [month, f.savingsTarget]);
-  const movements = data.movements.filter((m) => inRange(m.date, r)).sort((a, b) => b.date.localeCompare(a.date));
-  const goalName = (id?: string) => data.goals.find((g) => g.id === id);
-  const left = Math.max(0, f.savingsTarget - f.savingsNet);
-
-  const saveTarget = () => {
-    const c = target.trim() ? parseAmount(target) : 0;
-    if (c === null) {
-      toast('Montant invalide', 'error');
-      return;
-    }
-    dispatch({ type: 'budget/save', budget: { period: month, categories: budget?.categories ?? [], savingsTarget: c } });
-    toast('Objectif du mois enregistré', 'success');
-  };
-
-  return (
-    <>
-      <MonthStrip />
-      <StepNav active="epargne" />
-      <section className="card card-accent stack" aria-labelledby="sav">
-        <div className="row-between">
-          <h2 id="sav">Mon épargne — {shortLabel(month)}</h2>
-          <Fox mood={f.savingsTarget && f.savingsNet >= f.savingsTarget ? 'celebration' : 'exploration'} size={48} equipped={data.progress.equipped} animate={data.settings.animations} />
-        </div>
-        {f.savingsTarget > 0 ? (
-          <>
-            <div className="row" style={{ alignItems: 'baseline', gap: 8 }}>
-              <span className="hero-amount num">{money(f.savingsNet)}</span>
-              <span className="muted">/ {money(f.savingsTarget)}</span>
-            </div>
-            <Progress value={f.savingsNet} max={f.savingsTarget} tone={f.savingsNet >= f.savingsTarget ? 'ok' : 'xp'} label="Progression de l’objectif du mois" />
-            <div className="row-between small">
-              <span>
-                <strong>{percent(f.savingsNet, f.savingsTarget)} %</strong> atteint
-              </span>
-              <span className="muted num">{left > 0 ? `${money(left)} restants` : 'Objectif atteint 🎉'}</span>
-            </div>
-          </>
-        ) : (
-          <p className="small muted" style={{ margin: 0 }}>
-            Pas encore d’objectif ce mois-ci. Choisis un montant réaliste : même petit, il compte.
-          </p>
-        )}
-        <div className="row" style={{ alignItems: 'flex-end' }}>
-          <label className="field grow">
-            <span>Objectif du mois</span>
-            <input className="input" inputMode="decimal" placeholder="0,00 €" value={target} onChange={(e) => setTarget(e.target.value)} />
-          </label>
-          <button type="button" className="btn" onClick={saveTarget}>
-            OK
-          </button>
-        </div>
-      </section>
-
-      <section className="card stack" aria-label="Tableau du mois">
-        <div className="calc-lines">
-          <div className="row-between">
-            <span>Revenus reçus</span>
-            <span className="num">{money(f.incomesReceived)}</span>
-          </div>
-          <div className="row-between">
-            <span>− Dépenses payées</span>
-            <span className="num">{money(f.expensesPaid)}</span>
-          </div>
-          <div className="row-between">
-            <span>− Versements d’épargne</span>
-            <span className="num">{money(f.savingsDeposits)}</span>
-          </div>
-          <div className="row-between">
-            <span>+ Retraits d’épargne</span>
-            <span className="num">{money(f.savingsWithdrawals)}</span>
-          </div>
-          <div className="row-between total">
-            <strong>Reste disponible</strong>
-            <strong className={`num ${f.resteDisponible < 0 ? 'neg' : ''}`}>{money(f.resteDisponible)}</strong>
-          </div>
-        </div>
-        <p className="tiny" style={{ margin: 0 }}>
-          Mettre de côté n’est pas une dépense : c’est un transfert de ton argent disponible vers ton coffre.
-        </p>
-      </section>
-
-      <div className="grid-2">
-        <button type="button" className="btn btn-primary" onClick={() => open({ kind: 'movement', type: 'versement' })}>
-          <Icon name="chest" size={20} /> Mettre de côté
-        </button>
-        <button type="button" className="btn" onClick={() => open({ kind: 'movement', type: 'retrait' })} disabled={!data.goals.length}>
-          Retirer
-        </button>
-      </div>
-
-      <section className="card" aria-label="Mouvements du mois">
-        <div className="card-head">
-          <h2>Mouvements du mois</h2>
-        </div>
-        {movements.length === 0 ? (
-          <p className="small muted">Aucun mouvement ce mois-ci.</p>
-        ) : (
-          <div className="list">
-            {movements.map((m) => {
-              const g = goalName(m.goalId);
-              const inward = m.type === 'versement';
-              return (
-                <div key={m.id} className="list-row">
-                  <span className="icon-bubble" aria-hidden>
-                    {g?.icon ?? '🪙'}
-                  </span>
-                  <span className="grow" style={{ minWidth: 0 }}>
-                    <span className="ellipsis" style={{ display: 'block' }}>
-                      {m.type === 'transfert' ? `${g?.name} → ${goalName(m.toGoalId)?.name}` : `${inward ? 'Versement' : 'Retrait'} · ${g?.name}`}
-                    </span>
-                    <span className="tiny">{formatDateShort(m.date)}</span>
-                  </span>
-                  <span className={`num ${inward ? 'pos' : ''}`}>
-                    {m.type === 'transfert' ? '⇄ ' : inward ? '+' : '−'}
-                    {money(m.amount)}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </section>
-
-      {data.goals.length > 0 && (
-        <section className="card stack" aria-label="Progression des objectifs">
-          <h2>Mes trésors</h2>
-          {data.goals.map((g) => {
-            const b = goalBalance(g.id, data.movements);
-            return (
-              <div key={g.id} className="stack" style={{ gap: 4 }}>
-                <div className="row-between small">
-                  <span>
-                    {g.icon} {g.name}
-                  </span>
-                  <span className="num">{g.target > 0 ? `${money(b)} / ${money(g.target)}` : money(b)}</span>
-                </div>
-                {g.target > 0 && <Progress value={b} max={g.target} tone={b >= g.target ? 'ok' : undefined} label={g.name} />}
-              </div>
-            );
-          })}
-        </section>
-      )}
-      <button type="button" className="btn btn-soft btn-block" onClick={() => go('argent/bilan')}>
+      <button type="button" className="btn btn-soft btn-block" onClick={() => go('graphiques')}>
         Voir le bilan du mois <Icon name="chevron-right" size={18} />
       </button>
     </>

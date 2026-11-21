@@ -63,7 +63,7 @@ export function buildRows(data: AppData, range: DateRange, includePlanned = true
       amount: i.amount,
       sign: '+',
       title: i.description || INCOME_TYPE_LABEL[i.type],
-      subtitle: i.description && i.description !== INCOME_TYPE_LABEL[i.type] ? `Revenu · ${INCOME_TYPE_LABEL[i.type]}` : i.recurringId ? 'Revenu · récurrent' : 'Revenu',
+      subtitle: i.description && i.description !== INCOME_TYPE_LABEL[i.type] ? `Budget de base · ${INCOME_TYPE_LABEL[i.type]}` : i.recurringId ? 'Budget de base · récurrent' : 'Budget de base',
       icon: '💧',
       planned: i.status === 'prevu',
       cancelled: i.status === 'annule',

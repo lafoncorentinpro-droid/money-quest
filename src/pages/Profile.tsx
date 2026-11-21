@@ -116,15 +116,6 @@ export function Profile() {
             ))}
           </select>
         </Field>
-        <Field label="Premier jour du mois budgétaire" hint="Ex. 25 si ton salaire arrive le 25. Les opérations restent à leur date.">
-          <select className="input" value={s.monthStartDay} onChange={(e) => set({ monthStartDay: Number(e.target.value) })}>
-            {Array.from({ length: 28 }, (_, i) => i + 1).map((d) => (
-              <option key={d} value={d}>
-                Le {d}
-              </option>
-            ))}
-          </select>
-        </Field>
         <Field label="Thème">
           <div className="segmented" role="group" aria-label="Thème">
             {(
@@ -159,7 +150,6 @@ export function Profile() {
           Les alertes s’affichent dans l’application, à l’ouverture. Les notifications programmées sur iPhone nécessitent un serveur d’envoi, que cette version n’utilise pas (pour que tes
           données restent privées).
         </p>
-        <Switch label="Budget proche de sa limite" checked={s.alerts.budget} onChange={(v) => set({ alerts: { ...s.alerts, budget: v } })} />
         <Switch label="Échéances proches" checked={s.alerts.echeances} onChange={(v) => set({ alerts: { ...s.alerts, echeances: v } })} />
         <Switch label="Rappel de saisie du jour" checked={s.alerts.rappelSaisie} onChange={(v) => set({ alerts: { ...s.alerts, rappelSaisie: v } })} />
       </section>

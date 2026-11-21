@@ -95,7 +95,7 @@ export function ExpenseForm({ existing, onClose, preset }: { existing?: Expense;
         <Field label="Libellé (facultatif)">
           <input className="input" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ex. Marché du samedi" maxLength={120} />
         </Field>
-        <Field label="Rattacher à un revenu" hint="Pour suivre comment chaque revenu est utilisé. Ne change aucun total.">
+        <Field label="Rattacher à une entrée du budget" hint="Pour suivre à quoi sert chaque entrée. Ne change aucun total.">
           <select className="input" value={linkValid ? incomeId : ''} onChange={(e) => setIncomeId(e.target.value)}>
             <option value="">Dépense générale du mois</option>
             {monthIncomes.map((i) => (
@@ -139,7 +139,7 @@ export function ExpenseForm({ existing, onClose, preset }: { existing?: Expense;
               <span className="tiny">Net : {money(netExpense(existing))}</span>
             </div>
             <p className="tiny" style={{ margin: 0 }}>
-              Un remboursement réduit cette dépense (il n’est pas compté comme un revenu).
+              Un remboursement réduit cette dépense (il ne s’ajoute pas au budget de base).
             </p>
             {existing.refunds.map((r) => (
               <div key={r.id} className="row-between small">
@@ -230,13 +230,13 @@ export function IncomeForm({ existing, onClose }: { existing?: Income; onClose: 
     const fields = { amount: amount.cents!, type, date, description: description.trim() || INCOME_TYPE_LABEL[type], status, note: note.trim() || undefined };
     const ok = existing ? dispatch({ type: 'income/update', income: { ...existing, ...fields } }) : dispatch({ type: 'income/add', income: fields });
     if (ok) {
-      toast(existing ? 'Revenu modifié' : 'Revenu enregistré', 'success');
+      toast(existing ? 'Budget de base modifié' : 'Ajouté au budget de base', 'success');
       onClose();
     }
   };
 
   return (
-    <Sheet title={existing ? 'Modifier le revenu' : 'Nouveau revenu'} onClose={onClose}>
+    <Sheet title={existing ? 'Modifier' : 'Ajouter au budget de base'} onClose={onClose}>
       <form
         className="stack"
         onSubmit={(e) => {
@@ -244,11 +244,11 @@ export function IncomeForm({ existing, onClose }: { existing?: Income; onClose: 
           save();
         }}
       >
-        <Field label="Nom du revenu">
+        <Field label="Nom (ex. salaire)">
           <input className="input" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={`Ex. ${INCOME_TYPE_LABEL[type]}`} maxLength={120} />
         </Field>
         <AmountField amount={amount} big />
-        <div className="chips" role="group" aria-label="Type de revenu" style={{ flexWrap: 'wrap' }}>
+        <div className="chips" role="group" aria-label="Type" style={{ flexWrap: 'wrap' }}>
           {(Object.keys(INCOME_TYPE_LABEL) as IncomeType[]).map((t) => (
             <button type="button" key={t} className="chip" aria-pressed={type === t} onClick={() => setType(t)}>
               {INCOME_TYPE_LABEL[t]}
@@ -274,7 +274,7 @@ export function IncomeForm({ existing, onClose }: { existing?: Income; onClose: 
           <div className="notice notice-info small">Pour un remboursement lié à une dépense précise (ex. mutuelle), ouvre plutôt la dépense et ajoute-le dedans : il ne sera pas compté deux fois.</div>
         )}
         <button type="submit" className="btn btn-primary btn-block">
-          {existing ? 'Enregistrer' : 'Ajouter le revenu'}
+          {existing ? 'Enregistrer' : 'Ajouter'}
         </button>
         {existing && (
           <button type="button" className="btn btn-danger btn-block" onClick={() => setConfirmDelete(true)}>
@@ -284,14 +284,14 @@ export function IncomeForm({ existing, onClose }: { existing?: Income; onClose: 
       </form>
       {confirmDelete && existing && (
         <Confirm
-          title="Supprimer ce revenu ?"
+          title="Supprimer cette entrée ?"
           message={`${money(existing.amount)} du ${formatDateShort(existing.date)} sera retiré de l’historique.`}
           danger
           confirmLabel="Supprimer"
           onCancel={() => setConfirmDelete(false)}
           onConfirm={() => {
             dispatch({ type: 'income/delete', id: existing.id });
-            toast('Revenu supprimé');
+            toast('Entrée supprimée');
             onClose();
           }}
         />
@@ -346,7 +346,7 @@ export function RecurringForm({ existing, kind: kindProp, onClose }: { existing?
   };
 
   return (
-    <Sheet title={existing ? 'Modifier la récurrence' : kind === 'income' ? 'Revenu récurrent' : 'Charge récurrente'} onClose={onClose}>
+    <Sheet title={existing ? 'Modifier la récurrence' : kind === 'income' ? 'Budget de base récurrent' : 'Charge récurrente'} onClose={onClose}>
       <form
         className="stack"
         onSubmit={(e) => {
@@ -360,7 +360,7 @@ export function RecurringForm({ existing, kind: kindProp, onClose }: { existing?
               Dépense
             </button>
             <button type="button" aria-pressed={kind === 'income'} onClick={() => setKind('income')}>
-              Revenu
+              Budget de base
             </button>
           </div>
         )}
@@ -389,7 +389,7 @@ export function RecurringForm({ existing, kind: kindProp, onClose }: { existing?
             </Field>
           </div>
         ) : (
-          <Field label="Type de revenu">
+          <Field label="Type">
             <select className="input" value={incomeType} onChange={(e) => setIncomeType(e.target.value as IncomeType)}>
               {(Object.keys(INCOME_TYPE_LABEL) as IncomeType[]).map((t) => (
                 <option key={t} value={t}>
@@ -468,7 +468,7 @@ export function ConfirmOccurrenceForm({ rec, occurrenceDate, onClose }: { rec: R
             amount.setTouched(true);
             if (!amount.valid || !isValidISO(date)) return;
             if (dispatch({ type: 'recurring/confirm', recurringId: rec.id, occurrenceDate, date, amount: amount.cents! })) {
-              toast(rec.kind === 'income' ? 'Revenu confirmé' : 'Paiement confirmé', 'success');
+              toast(rec.kind === 'income' ? 'Reçu, c’est noté' : 'Paiement confirmé', 'success');
               onClose();
             }
           }}

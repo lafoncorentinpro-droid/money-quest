@@ -24,7 +24,7 @@ export async function loadData(): Promise<LoadResult> {
     const prev = await get(PREV, store);
     const back = prev !== undefined ? validateData(prev) : undefined;
     if (back?.ok) return { data: back.data, status: 'recovered', message: 'Les données principales étaient illisibles : la dernière copie valide a été restaurée.' };
-    return { data: initialData(), status: 'unavailable', message: `Données locales illisibles (${res.errors[0]}). Importe une sauvegarde depuis Profil.` };
+    return { data: initialData(), status: 'unavailable', message: `Données locales illisibles (${res.errors[0]}). Importe une sauvegarde depuis Réglages.` };
   } catch (e) {
     return { data: initialData(), status: 'unavailable', message: `Impossible de lire le stockage local : ${(e as Error).message}` };
   }

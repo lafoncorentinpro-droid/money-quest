@@ -42,13 +42,10 @@ function SheetRenderer({ spec, close, open }: { spec: SheetSpec; close: () => vo
               <Icon name="card" size={24} /> Une dépense
             </button>
             <button type="button" className="btn btn-block" style={{ minHeight: 60, justifyContent: 'flex-start' }} onClick={() => open({ kind: 'income' })}>
-              <Icon name="arrow-down-circle" size={24} /> Un revenu
-            </button>
-            <button type="button" className="btn btn-block" style={{ minHeight: 60, justifyContent: 'flex-start' }} onClick={() => open({ kind: 'movement' })}>
-              <Icon name="chest" size={24} /> Un versement d’épargne
+              <Icon name="arrow-down-circle" size={24} /> Budget de base (salaire…)
             </button>
             <button type="button" className="btn btn-block" style={{ minHeight: 60, justifyContent: 'flex-start' }} onClick={() => open({ kind: 'recurring' })}>
-              <Icon name="repeat" size={24} /> Une charge ou un revenu récurrent
+              <Icon name="repeat" size={24} /> Un montant qui revient chaque mois
             </button>
           </div>
         </Sheet>

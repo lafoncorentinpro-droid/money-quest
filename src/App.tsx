@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { goalBalance } from './domain/finance';
+import { ChartsPage } from './pages/Charts';
 import { Home } from './pages/Home';
 import { Money } from './pages/Money';
 import { Profile } from './pages/Profile';
@@ -8,6 +9,7 @@ import { Fox } from './ui/Fox';
 import { go, useRoute } from './ui/router';
 import { SheetsProvider, useSheets } from './ui/sheets';
 import { Icon } from './ui/Icon';
+import { Splash } from './ui/Splash';
 
 const TABS = [
   { id: 'accueil', label: 'Accueil', icon: <path d="M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" /> },
@@ -24,9 +26,11 @@ const TABS = [
 ];
 
 function TabBar({ current }: { current: string }) {
+  const idx = Math.max(0, TABS.findIndex((t) => t.id === current));
   return (
     <nav className="tabbar" aria-label="Navigation principale">
       <div className="tabbar-inner">
+        <span className="tab-indicator" style={{ transform: `translateX(${idx * 100}%)` }} aria-hidden />
         {TABS.map((t) => (
           <a key={t.id} href={`#/${t.id}`} className="tab" aria-current={current === t.id ? 'page' : undefined}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -90,12 +94,34 @@ function useCelebrations(): [Celebration | null, () => void] {
   return [queue[0] ?? null, () => setQueue((q) => q.slice(1))];
 }
 
+/** Profondeur d'un écran : sert à choisir le sens de l'animation (plus loin = depuis la droite). */
+function depth(tab?: string, sub?: string): number {
+  if (!tab || tab === 'accueil') return 0;
+  if (tab === 'argent') return sub ? 2 : 1;
+  return 2;
+}
+
+function useDirection(tab?: string, sub?: string): 'fwd' | 'back' {
+  const prev = useRef(depth(tab, sub));
+  const dir = useRef<'fwd' | 'back'>('fwd');
+  const key = (tab ?? '') + '/' + (sub ?? '');
+  const lastKey = useRef(key);
+  if (lastKey.current !== key) {
+    const d = depth(tab, sub);
+    dir.current = d >= prev.current ? 'fwd' : 'back';
+    prev.current = d;
+    lastKey.current = key;
+  }
+  return dir.current;
+}
+
 function Shell() {
   const route = useRoute();
   const { data, storageMessage, saveError } = useStore();
   const open = useSheets();
   const [celebration, next] = useCelebrations();
   const [tab, sub, arg] = route;
+  const dir = useDirection(tab, sub);
 
   useEffect(() => {
     document.documentElement.dataset.theme = data.settings.theme === 'auto' ? '' : data.settings.theme;
@@ -104,13 +130,16 @@ function Shell() {
   }, [data.settings.theme, data.settings.animations]);
 
   useEffect(() => {
-    if (!TABS.some((t) => t.id === tab) && tab !== 'reglages') go('accueil');
+    if (!TABS.some((t) => t.id === tab) && tab !== 'reglages' && tab !== 'graphiques') go('accueil');
   }, [tab]);
 
   let page;
   switch (tab) {
     case 'argent':
       page = <Money sub={sub} arg={arg} />;
+      break;
+    case 'graphiques':
+      page = <ChartsPage />;
       break;
     case 'reglages':
       page = <Profile />;
@@ -128,12 +157,15 @@ function Shell() {
             {saveError}
           </div>
         )}
-        <div key={tab + (sub ?? '')}>{page}</div>
+        <div key={tab + (sub ?? '')} className={`route-enter route-${dir}`}>
+          {page}
+        </div>
       </main>
       <button type="button" className="fab" aria-label="Ajouter une opération" onClick={() => open({ kind: 'quick' })}>
         <Icon name="plus" size={30} strokeWidth={2.4} />
       </button>
-      <TabBar current={tab ?? 'accueil'} />
+      <TabBar current={tab === 'argent' ? 'argent' : 'accueil'} />
+      <Splash animations={data.settings.animations} />
       {celebration && data.settings.animations && <Celebrate c={celebration} onClose={next} />}
       {celebration && !data.settings.animations && <AutoSkip onSkip={next} />}
     </>

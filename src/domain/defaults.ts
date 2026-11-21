@@ -1,7 +1,7 @@
 import { DEFAULT_ACTIVE_MISSIONS, DEFAULT_XP_RULES } from './game';
 import type { AppData, Category, IncomeType } from './types';
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export const DEFAULT_CATEGORIES: Category[] = [
   ['logement', 'Logement', '🏠'],
@@ -63,7 +63,7 @@ export function initialData(nowIso = new Date().toISOString()): AppData {
       nickname: '',
       currency: 'EUR',
       monthStartDay: 1,
-      theme: 'auto',
+      theme: 'clair',
       animations: true,
       alerts: { budget: true, echeances: true, rappelSaisie: true, masquerMontants: false },
       xpRules: { ...DEFAULT_XP_RULES },

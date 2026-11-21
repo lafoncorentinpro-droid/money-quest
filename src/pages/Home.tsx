@@ -1,59 +1,13 @@
 import { addDays, formatDateLong, formatDateShort, periodLabel, periodRange } from '../domain/dates';
-import { monthSummary, recentByDay, totalSavings, type MonthSummary } from '../domain/finance';
-import { percent } from '../domain/money';
+import { monthSummary, recentByDay, type MonthSummary } from '../domain/finance';
 import { pendingOccurrences } from '../domain/recurring';
 import { useStore } from '../store/store';
-import { Progress } from '../ui/components';
+import { useCountUp } from '../ui/components';
 import { Fox, type FoxMood } from '../ui/Fox';
 import { go } from '../ui/router';
 import { useSheets } from '../ui/sheets';
 import { Icon } from '../ui/Icon';
 import { buildRows, OpRowView } from './operations';
-
-export function CalcExplain({ s }: { s: MonthSummary }) {
-  const { money } = useStore();
-  return (
-    <details className="explain">
-      <summary>Comment c’est calculé ?</summary>
-      <table className="calc-table">
-        <tbody>
-          {s.carryIn !== 0 && (
-            <tr>
-              <td>Report du mois précédent</td>
-              <td>{money(s.carryIn)}</td>
-            </tr>
-          )}
-          {s.openingBalance !== 0 && (
-            <tr>
-              <td>Solde de départ</td>
-              <td>{money(s.openingBalance)}</td>
-            </tr>
-          )}
-          <tr>
-            <td>+ Revenus reçus</td>
-            <td>{money(s.incomesReceived)}</td>
-          </tr>
-          <tr>
-            <td>− Dépenses réalisées (nettes)</td>
-            <td>{money(s.expensesRealized)}</td>
-          </tr>
-          <tr>
-            <td>− Épargne mise de côté (versements − retraits)</td>
-            <td>{money(s.savingsNet)}</td>
-          </tr>
-          <tr className="total">
-            <td>= Disponible estimé</td>
-            <td>{money(s.available)}</td>
-          </tr>
-        </tbody>
-      </table>
-      <p className="tiny">
-        C’est une estimation à partir de ce que tu as saisi : l’application n’est pas reliée à ta banque, ce n’est pas ton solde bancaire. Les opérations prévues et annulées ne sont pas
-        comptées.
-      </p>
-    </details>
-  );
-}
 
 function foxMessage(s: MonthSummary, hasData: boolean, nickname: string): { mood: FoxMood; text: string } {
   const m = foxMessageRaw(s, hasData, nickname);
@@ -73,6 +27,7 @@ export function Home() {
   const { data, period, today, money } = useStore();
   const open = useSheets();
   const s = monthSummary(data, period);
+  const shown = useCountUp(s.available);
   const hasData = data.incomes.length + data.expenses.length + data.recurring.length + data.movements.length > 0 || Object.keys(data.budgets).length > 0;
   const fox = foxMessage(s, hasData, data.settings.nickname);
   const { alerts } = data.settings;
@@ -83,10 +38,8 @@ export function Home() {
   const loggedToday = data.progress.xpEvents.some((e) => e.key === `saisie:${today}`);
   const warnCats = s.categories.filter((c) => c.state !== 'ok');
   const catName = (id: string) => data.categories.find((c) => c.id === id);
-  const savings = totalSavings(data);
 
   const recent = recentByDay(buildRows(data, periodRange(period, data.settings.monthStartDay), false), 3);
-  const budgetLeft = s.budgetTotal - s.budgetSpent;
 
   return (
     <div className="page">
@@ -105,64 +58,33 @@ export function Home() {
       <section className="card stack" aria-labelledby="dispo">
         <div className="row-between">
           <h2 id="dispo" className="small muted" style={{ fontFamily: 'var(--font)', fontWeight: 600 }}>
-            Disponible estimé ce mois
+            Il te reste ce mois
           </h2>
           <span className="tag">Estimation</span>
         </div>
-        <div className={`hero-amount num ${s.available < 0 ? 'neg' : ''}`}>{money(s.available)}</div>
+        <div className={`hero-amount num ${s.available < 0 ? 'neg' : ''}`}>{money(shown)}</div>
         <div className="grid-2">
           <div className="stat">
-            <div className="label">Revenus reçus</div>
+            <div className="label">Budget de base</div>
             <div className="value num">{money(s.incomesReceived)}</div>
           </div>
           <div className="stat">
-            <div className="label">Dépenses réalisées</div>
+            <div className="label">Dépensé</div>
             <div className="value num">{money(s.expensesRealized)}</div>
-          </div>
-          <div className="stat">
-            <div className="label">Mis de côté ce mois</div>
-            <div className="value num">{money(s.savingsNet)}</div>
-          </div>
-          <div className="stat">
-            <div className="label">Épargne totale</div>
-            <div className="value num">{money(savings)}</div>
           </div>
         </div>
         {(s.incomesPlanned > 0 || s.expensesPlanned > 0) && (
           <div className="notice notice-info small">
             <span aria-hidden>🔮</span>
             <span>
-              Prévision de fin de mois : <strong className="num">{money(s.forecast)}</strong> (si {money(s.incomesPlanned)} de revenus attendus arrivent et {money(s.expensesPlanned)} de dépenses
+              Prévision de fin de mois : <strong className="num">{money(s.forecast)}</strong> (si {money(s.incomesPlanned)} de budget de base attendu arrive et {money(s.expensesPlanned)} de dépenses
               prévues sont payées).
             </span>
           </div>
         )}
-        <CalcExplain s={s} />
-      </section>
-
-      <section className="card stack" aria-labelledby="bud">
-        <div className="row-between">
-          <h2 id="bud">Budget du mois</h2>
-          <button type="button" className="link" onClick={() => go('argent/budget')}>
-            {s.hasBudget && s.budgetTotal > 0 ? 'Détails' : 'Créer'}
-          </button>
-        </div>
-        {s.hasBudget && s.budgetTotal > 0 ? (
-          <>
-            <div>
-              <span className={`budget-left num ${budgetLeft < 0 ? 'neg' : 'pos'}`}>{money(Math.abs(budgetLeft))}</span>{' '}
-              <span className="muted">{budgetLeft < 0 ? 'de dépassement' : 'restants'}</span>
-              <div className="tiny">sur {money(s.budgetTotal)} prévus ce mois</div>
-            </div>
-            <Progress value={s.budgetSpent} max={s.budgetTotal} tone={budgetLeft < 0 ? 'depasse' : percent(s.budgetSpent, s.budgetTotal) >= 80 ? 'proche' : 'ok'} label="Budget utilisé" />
-            <div className="row-between tiny">
-              <span className="num">{money(s.budgetSpent)} dépensés</span>
-              <span className="num">{percent(s.budgetSpent, s.budgetTotal)} % utilisé</span>
-            </div>
-          </>
-        ) : (
-          <p className="small muted" style={{ margin: 0 }}>Pas encore de budget ce mois-ci. Fixe une limite pour voir d’un coup d’œil ce qu’il te reste.</p>
-        )}
+        <button type="button" className="btn btn-soft btn-block" onClick={() => go('graphiques')}>
+          📊 Bilan du mois
+        </button>
       </section>
 
       <section className="card" aria-labelledby="recent">
@@ -203,11 +125,7 @@ export function Home() {
         </button>
         <button type="button" className="btn" onClick={() => open({ kind: 'income' })}>
           <Icon name="arrow-down-circle" size={26} />
-          <span>Revenu</span>
-        </button>
-        <button type="button" className="btn" onClick={() => open({ kind: 'movement' })}>
-          <Icon name="chest" size={26} />
-          <span>Épargne</span>
+          <span>Budget de base</span>
         </button>
       </div>
 

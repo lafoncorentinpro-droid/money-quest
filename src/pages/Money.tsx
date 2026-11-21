@@ -5,39 +5,21 @@ import { useStore } from '../store/store';
 import { Empty, PageHead, PeriodSwitcher } from '../ui/components';
 import { go } from '../ui/router';
 import { useSheets } from '../ui/sheets';
-import { BilanPage, BudgetPage, CalendarPage, CategoriesPage, RecurringPage, SimulatorPage, StatsPage } from './MoneyViews';
+import { ChartsPage } from './Charts';
 import { buildRows, OpRowView } from './operations';
-import { ExpensesStep, IncomesStep, MonthOverview, SavingsStep } from './Month';
+import { ExpensesStep, IncomesStep, MonthOverview } from './Month';
 
 const TOOLS: Record<string, string> = {
-  operations: 'Toutes les opérations',
-  budget: 'Budget par catégorie',
-  recurrences: 'Récurrences',
-  calendrier: 'Calendrier',
-  stats: 'Statistiques',
-  simulateur: 'Simulateur'
+  operations: 'Toutes les opérations'
 };
 
-export function Money({ sub, arg }: { sub?: string; arg?: string }) {
-  if (sub === 'bilan') return <BilanPage period={arg} />;
-  if (sub === 'categories') return <CategoriesPage />;
+export function Money({ sub }: { sub?: string; arg?: string }) {
+  if (sub === 'bilan') return <ChartsPage />;
   if (sub && TOOLS[sub]) {
     return (
       <div className="page">
         <PageHead title={TOOLS[sub]} backTo="argent" />
-        {sub === 'budget' ? (
-          <BudgetPage />
-        ) : sub === 'recurrences' ? (
-          <RecurringPage />
-        ) : sub === 'calendrier' ? (
-          <CalendarPage />
-        ) : sub === 'stats' ? (
-          <StatsPage />
-        ) : sub === 'simulateur' ? (
-          <SimulatorPage />
-        ) : (
-          <Operations />
-        )}
+        <Operations />
       </div>
     );
   }
@@ -46,7 +28,7 @@ export function Money({ sub, arg }: { sub?: string; arg?: string }) {
       <header className="page-head">
         <h1>Mon argent</h1>
       </header>
-      {sub === 'revenus' ? <IncomesStep /> : sub === 'depenses' ? <ExpensesStep /> : sub === 'epargne' ? <SavingsStep /> : <MonthOverview />}
+      {sub === 'revenus' ? <IncomesStep /> : sub === 'depenses' ? <ExpensesStep /> : <MonthOverview />}
     </div>
   );
 }

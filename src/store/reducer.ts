@@ -257,7 +257,7 @@ function base(data: AppData, a: Stamped, now: string): AppData {
 
     case 'settings/update': {
       const s = { ...data.settings, ...a.settings };
-      s.monthStartDay = Math.min(28, Math.max(1, Math.round(s.monthStartDay)));
+      s.monthStartDay = 1; // le mois va toujours du 1er au dernier jour
       return { ...data, settings: s };
     }
     case 'equip':

@@ -1,4 +1,4 @@
-import { inRange, periodOf, periodRange, shiftPeriod } from './dates';
+import { addDays, daysBetween, inRange, periodOf, periodRange, shiftPeriod } from './dates';
 import { sum } from './money';
 import { pendingOccurrences } from './recurring';
 import type { AppData, Cents, DateRange, Expense, ID, ISODate, PeriodKey, SavingsMovement } from './types';
@@ -452,4 +452,57 @@ export function recentByDay<T extends DayItem>(items: T[], maxDays = 3): DayGrou
       const net = day.reduce((acc, i) => acc + (i.sign === '+' ? i.amount : i.sign === '−' ? -i.amount : 0), 0);
       return { date, net, items: day };
     });
+}
+
+/* ---------- Graphique du mois et bilan de l'année ---------- */
+
+export interface DayPoint {
+  date: ISODate;
+  available: number; // disponible estimé en fin de journée
+}
+
+/** Évolution jour par jour du disponible estimé sur le mois (jusqu'à aujourd'hui pour le mois en cours). */
+export function monthCurve(data: AppData, period: PeriodKey, today: ISODate): DayPoint[] {
+  const r = periodRange(period, data.settings.monthStartDay);
+  const s = monthSummary(data, period);
+  const last = today < r.end ? today : r.end;
+  if (last < r.start) return [];
+  let acc = s.carryIn + s.openingBalance;
+  const out: DayPoint[] = [];
+  for (let d = r.start; d <= last; d = addDays(d, 1)) {
+    const day = { start: d, end: d };
+    acc += incomesReceived(data, day) - expensesRealized(data, day) - savingsFlows(data.movements, day).net;
+    out.push({ date: d, available: acc });
+  }
+  return out;
+}
+
+/** Où en est-on dans le mois : jour courant / nombre de jours (le mois passé est complet, le futur à 0). */
+export function monthProgress(data: AppData, period: PeriodKey, today: ISODate): { day: number; days: number } {
+  const r = periodRange(period, data.settings.monthStartDay);
+  const days = daysBetween(r.start, r.end) + 1;
+  if (today < r.start) return { day: 0, days };
+  if (today > r.end) return { day: days, days };
+  return { day: daysBetween(r.start, today) + 1, days };
+}
+
+export interface YearSummary {
+  year: number;
+  months: PeriodPoint[];
+  incomes: Cents;
+  expenses: Cents;
+  /** Mis en épargne (versements − retraits). */
+  savingsNet: number;
+  /** Économisé = revenus reçus − dépenses réalisées. */
+  saved: number;
+}
+
+export function yearSummary(data: AppData, year: number): YearSummary {
+  const months = seriesByPeriod(
+    data,
+    Array.from({ length: 12 }, (_, i) => `${year}-${String(i + 1).padStart(2, '0')}` as PeriodKey)
+  );
+  const incomes = sum(months.map((m) => m.incomes));
+  const expenses = sum(months.map((m) => m.expenses));
+  return { year, months, incomes, expenses, savingsNet: months.reduce((a, m) => a + m.savingsNet, 0), saved: incomes - expenses };
 }

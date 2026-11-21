@@ -38,7 +38,12 @@ export type ValidationResult = { ok: true; data: AppData; summary: BackupSummary
 
 /** Migrations de schéma : chaque version ajoute une étape. */
 const MIGRATIONS: Record<number, (d: Record<string, unknown>) => Record<string, unknown>> = {
-  // 1 -> 2 : exemple pour les versions futures
+  // 1 -> 2 : le mois va toujours du 1er au dernier jour
+  // + thème clair par défaut (l'ancien « auto » devient « clair »)
+  1: (d) => {
+    const st = (d.settings ?? {}) as Record<string, unknown>;
+    return { ...d, settings: { ...st, monthStartDay: 1, theme: st.theme === 'auto' || st.theme === undefined ? 'clair' : st.theme } };
+  }
 };
 
 export function migrate(raw: Record<string, unknown>): Record<string, unknown> {

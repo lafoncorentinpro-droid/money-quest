@@ -339,3 +339,43 @@ describe('accueil : opérations récentes par jour', () => {
     expect(groups[1].net).toBe(150000);
   });
 });
+
+describe('graphique du mois et bilan annuel', () => {
+  it('la courbe du mois finit sur le disponible estimé et s’arrête à aujourd’hui', async () => {
+    const { monthCurve, monthProgress } = await import('../src/domain/finance');
+    const d = run(initialData(), inc(200000, '2026-11-01'), exp(5000, '2026-11-03'), exp(1250, '2026-11-15'), exp(999, '2026-11-20'));
+    const c = monthCurve(d, '2026-11', T);
+    expect(c).toHaveLength(15);
+    expect(c[0].available).toBe(200000);
+    expect(c[2].available).toBe(195000);
+    const full = monthCurve(d, '2026-11', '2026-12-05');
+    expect(full).toHaveLength(30);
+    expect(full[29].available).toBe(monthSummary(d, '2026-11').available);
+    expect(monthProgress(d, '2026-11', T)).toEqual({ day: 15, days: 30 });
+    expect(monthProgress(d, '2026-10', T)).toEqual({ day: 31, days: 31 });
+    expect(monthCurve(d, '2026-12', T)).toEqual([]);
+  });
+
+  it('le bilan de l’année additionne revenus et dépenses de chaque mois', async () => {
+    const { yearSummary } = await import('../src/domain/finance');
+    const d = run(initialData(), inc(150000, '2026-01-05'), exp(40000, '2026-01-10'), inc(150000, '2026-11-01'), exp(60000, '2026-11-02'), exp(9999, '2025-12-31'));
+    const y = yearSummary(d, 2026);
+    expect(y.months).toHaveLength(12);
+    expect(y.incomes).toBe(300000);
+    expect(y.expenses).toBe(100000);
+    expect(y.saved).toBe(200000);
+    expect(y.months[0].expenses).toBe(40000);
+  });
+});
+
+describe('migration v2 : mois du 1er au dernier jour', () => {
+  it('remet le début du mois au 1er pour les anciennes sauvegardes', async () => {
+    const { migrate } = await import('../src/domain/backup');
+    const d = migrate({ schemaVersion: 1, settings: { monthStartDay: 25, currency: 'EUR', theme: 'auto' } }) as { schemaVersion: number; settings: { monthStartDay: number; currency: string; theme: string } };
+    expect(d.settings.theme).toBe('clair');
+    expect((migrate({ schemaVersion: 1, settings: { theme: 'sombre' } }) as { settings: { theme: string } }).settings.theme).toBe('sombre');
+    expect(d.schemaVersion).toBe(2);
+    expect(d.settings.monthStartDay).toBe(1);
+    expect(d.settings.currency).toBe('EUR');
+  });
+});

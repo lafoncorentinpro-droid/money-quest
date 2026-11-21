@@ -9,8 +9,15 @@ import { Icon } from './Icon';
 export function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   const titleId = useId();
-  const closeRef = useRef(onClose);
-  closeRef.current = onClose;
+  const [closing, setClosing] = useState(false);
+  const requestClose = () => {
+    const reduced = document.body.classList.contains('no-anim') || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (reduced) return onClose();
+    setClosing(true);
+    setTimeout(onClose, 200);
+  };
+  const closeRef = useRef(requestClose);
+  closeRef.current = requestClose;
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
     const first = ref.current?.querySelector<HTMLElement>('input:not([type=checkbox]), select, textarea');
@@ -19,19 +26,21 @@ export function Sheet({ title, onClose, children }: { title: string; onClose: ()
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && closeRef.current();
     document.addEventListener('keydown', onKey);
     document.body.style.overflow = 'hidden';
+    document.body.classList.add('sheet-open');
     return () => {
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = '';
+      document.body.classList.remove('sheet-open');
       prev?.focus?.({ preventScroll: true });
     };
   }, []);
   return (
-    <div className="sheet-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div className={`sheet-backdrop ${closing ? 'is-closing' : ''}`} onClick={(e) => e.target === e.currentTarget && requestClose()}>
       <div className="sheet" role="dialog" aria-modal="true" aria-labelledby={titleId} ref={ref} tabIndex={-1}>
         <div className="sheet-grip" aria-hidden />
         <div className="sheet-head">
           <h2 id={titleId}>{title}</h2>
-          <button type="button" className="close-btn" onClick={onClose} aria-label="Fermer">
+          <button type="button" className="close-btn" onClick={requestClose} aria-label="Fermer">
             <Icon name="xmark" size={18} />
           </button>
         </div>
@@ -205,4 +214,31 @@ export function StateTag({ state }: { state: 'ok' | 'proche' | 'depasse' }) {
   if (state === 'depasse') return <span className="tag tag-warn">▲ Dépassé</span>;
   if (state === 'proche') return <span className="tag tag-gold">● Proche</span>;
   return <span className="tag tag-ok">✓ OK</span>;
+}
+
+/** Fait défiler un montant affiché jusqu'à sa valeur (affichage seulement, voir ANIMATIONS.md § 4). */
+export function useCountUp(target: number, duration = 700): number {
+  const [value, setValue] = useState(target);
+  const from = useRef(0);
+  useEffect(() => {
+    const reduced = document.body.classList.contains('no-anim') || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (reduced || from.current === target) {
+      setValue(target);
+      from.current = target;
+      return;
+    }
+    const start = performance.now();
+    const a = from.current;
+    let raf = 0;
+    const step = (t: number) => {
+      const k = Math.min(1, (t - start) / duration);
+      const e = 1 - Math.pow(1 - k, 3);
+      setValue(Math.round(a + (target - a) * e));
+      if (k < 1) raf = requestAnimationFrame(step);
+      else from.current = target;
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [target, duration]);
+  return value;
 }
