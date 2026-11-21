@@ -1,7 +1,9 @@
-import { addDays, formatDateLong, formatDateShort, periodLabel, periodRange } from '../domain/dates';
-import { monthSummary, recentByDay } from '../domain/finance';
-import { pendingOccurrences } from '../domain/recurring';
+import { addDays, formatDateShort, periodLabel, periodRange } from '../domain/dates';
+import { monthProgress, monthSummary } from '../domain/finance';
+import { percent } from '../domain/money';
+import { periodStatus, scheduleLabel } from '../domain/recurring';
 import { useStore } from '../store/store';
+import { CatIcon } from '../ui/CatIcon';
 import { useCountUp } from '../ui/components';
 import { Icon } from '../ui/Icon';
 import { Mascot } from '../ui/Mascot';
@@ -9,106 +11,90 @@ import { go } from '../ui/router';
 import { useSheets } from '../ui/sheets';
 import { buildRows, OpRowView } from './operations';
 
-/** Accueil : tout tient sur un écran d'iPhone (375 × 812). */
+/** Accueil « Mon QG » (maquette 01-Accueil). */
 export function Home() {
   const { data, period, today, money } = useStore();
   const open = useSheets();
   const s = monthSummary(data, period);
   const shown = useCountUp(s.available);
-  const catName = (id: string) => data.categories.find((c) => c.id === id);
+  const range = periodRange(period, 1);
+  const prog = monthProgress(data, period, today);
+  const used = s.incomesReceived > 0 ? Math.min(100, percent(s.expensesRealized, s.incomesReceived)) : 0;
 
-  const due = data.settings.alerts.echeances ? pendingOccurrences(data, { start: addDays(today, -31), end: addDays(today, 7) }).slice(0, 2) : [];
+  // Dernières opérations : 3 réalisées + 1 échéance à venir dans la semaine
+  const rows = buildRows(data, range, true);
+  const done = rows.filter((r) => !r.planned && !r.cancelled).sort((a, b) => b.date.localeCompare(a.date));
+  const soon = rows.filter((r) => r.planned && r.date >= today && r.date <= addDays(today, 7)).sort((a, b) => a.date.localeCompare(b.date));
+  const recent = [...done.slice(0, soon.length ? 3 : 4), ...soon.slice(0, 1)];
+  const dayLabel = (d: string) => (d === today ? 'Aujourd’hui' : d === addDays(today, -1) ? 'Hier' : formatDateShort(d));
 
-  // 3 dernières opérations, groupées par jour
-  let left = due.length ? 2 : 3;
-  const recent = recentByDay(buildRows(data, periodRange(period, 1), false), 3)
-    .map((d) => {
-      const items = d.items.slice(0, Math.max(0, left));
-      left -= items.length;
-      return { ...d, items };
-    })
-    .filter((d) => d.items.length > 0);
+  const recurring = data.recurring.filter((r) => r.kind === 'expense' && r.active).sort((a, b) => a.startDate.slice(8).localeCompare(b.startDate.slice(8)));
 
   return (
     <div className="page home">
-      <header className="row-between">
-        <div className="row" style={{ gap: 10 }}>
-          <Mascot id={data.settings.mascot} size={48} hello animate={data.settings.animations} />
-          <div>
-            <div className="tiny" style={{ textTransform: 'capitalize' }}>
-              {periodLabel(period, 1)}
-            </div>
-            <h1 style={{ fontFamily: 'var(--font-title)', margin: 0, fontSize: 24 }}>Mon QG</h1>
-          </div>
+      <header className="home-head">
+        <div>
+          <div className="home-month">{periodLabel(period, 1)}</div>
+          <h1 className="home-title">Mon QG</h1>
         </div>
-        <button type="button" className="icon-btn" onClick={() => go('reglages')} aria-label="Réglages">
-          <Icon name="gear" size={24} />
+        <button type="button" className="round-btn" onClick={() => go('reglages')} aria-label="Réglages">
+          <Icon name="sliders" size={21} strokeWidth={2} />
         </button>
       </header>
 
-      <section className="card stack home-hero" aria-labelledby="dispo">
-        <div className="row-between">
-          <h2 id="dispo" className="small muted" style={{ fontFamily: 'var(--font)', fontWeight: 600 }}>
+      <section className="hero-card" aria-labelledby="dispo">
+        <div className="hero-mascot">
+          <Mascot id={data.settings.mascot} size={112} hello animate={data.settings.animations} />
+        </div>
+        <div className="row" style={{ gap: 8 }}>
+          <h2 id="dispo" className="hero-label">
             Il te reste ce mois
           </h2>
-          <button type="button" className="link" onClick={() => go('graphiques')}>
-            📊 Bilan
-          </button>
+          <span className="hero-tag">Estimation</span>
         </div>
-        <div className={`hero-amount num ${s.available < 0 ? 'neg' : ''}`}>{money(shown)}</div>
-        <div className="grid-2">
-          <div className="stat">
-            <div className="label">Budget de base</div>
-            <div className="value num">{money(s.incomesReceived)}</div>
+        <div className={`hero-big num ${s.available < 0 ? 'is-neg' : ''}`}>{money(shown)}</div>
+        <div className="hero-bar" role="progressbar" aria-valuenow={used} aria-valuemin={0} aria-valuemax={100} aria-label="Budget utilisé">
+          <span style={{ width: `${used}%` }} />
+        </div>
+        <div className="row-between hero-small">
+          <span>{used} % du budget utilisé</span>
+          <span>{prog.day >= prog.days ? 'Mois terminé' : `Jour ${prog.day} sur ${prog.days}`}</span>
+        </div>
+        <div className="hero-tiles">
+          <div>
+            <span>Budget de base</span>
+            <strong className="num">{money(s.incomesReceived)}</strong>
           </div>
-          <div className="stat">
-            <div className="label">Dépensé</div>
-            <div className="value num">{money(s.expensesRealized)}</div>
+          <div>
+            <span>Dépensé</span>
+            <strong className="num">{money(s.expensesRealized)}</strong>
           </div>
         </div>
+        <button type="button" className="hero-btn" onClick={() => go('graphiques')}>
+          <Icon name="chart" size={20} strokeWidth={2} /> Bilan du mois
+        </button>
       </section>
 
-      <div className="quick-actions">
-        <button type="button" className="btn btn-primary" onClick={() => open({ kind: 'expense' })}>
-          <Icon name="card" size={24} />
-          <span>Dépense</span>
+      <div className="action-tiles">
+        <button type="button" className="action-tile is-primary" onClick={() => open({ kind: 'expense' })}>
+          <span className="action-ico">
+            <Icon name="card" size={22} />
+          </span>
+          Dépense
         </button>
-        <button type="button" className="btn" onClick={() => open({ kind: 'recurring', recKind: 'expense' })}>
-          <Icon name="repeat" size={24} />
-          <span>Dépense récurrente</span>
+        <button type="button" className="action-tile" onClick={() => open({ kind: 'recurring', recKind: 'expense' })}>
+          <span className="action-ico">
+            <Icon name="repeat" size={22} />
+          </span>
+          Récurrente
         </button>
-        <button type="button" className="btn" onClick={() => open({ kind: 'income' })}>
-          <Icon name="arrow-down-circle" size={24} />
-          <span>Budget de base</span>
+        <button type="button" className="action-tile" onClick={() => open({ kind: 'income' })}>
+          <span className="action-ico">
+            <Icon name="arrow-down-circle" size={22} />
+          </span>
+          Budget de base
         </button>
       </div>
-
-      {due.length > 0 && (
-        <section className="card" aria-labelledby="ech">
-          <div className="card-head">
-            <h2 id="ech">À confirmer</h2>
-            <button type="button" className="link" onClick={() => go('argent')}>
-              Tout voir
-            </button>
-          </div>
-          <div className="list">
-            {due.map((u) => (
-              <div key={u.rec.id + u.date} className="list-row planned-row">
-                <span className="icon-bubble" aria-hidden>
-                  {u.rec.kind === 'income' ? '💧' : catName(u.rec.categoryId ?? '')?.icon ?? '🔁'}
-                </span>
-                <div className="grow" style={{ minWidth: 0 }}>
-                  <div className="ellipsis">{u.rec.description}</div>
-                  <div className="tiny">{u.date < today ? <span className="neg">Depuis le {formatDateShort(u.date)}</span> : `Le ${formatDateShort(u.date)}`}</div>
-                </div>
-                <button type="button" className="btn btn-sm btn-soft" onClick={() => open({ kind: 'occurrence', rec: u.rec, date: u.date })}>
-                  {u.rec.kind === 'income' ? 'Reçu ?' : 'Payé ?'} {money(u.rec.amount)}
-                </button>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
 
       <section className="card" aria-labelledby="recent">
         <div className="card-head">
@@ -120,23 +106,56 @@ export function Home() {
         {recent.length === 0 ? (
           <p className="small muted" style={{ margin: 0 }}>Rien de noté ce mois-ci pour l’instant.</p>
         ) : (
-          recent.map((d) => (
-            <div key={d.date}>
-              <div className="day-head row-between tiny">
-                <span style={{ textTransform: 'capitalize' }}>{d.date === today ? 'Aujourd’hui' : formatDateLong(d.date)}</span>
-                <span className={`num ${d.net > 0 ? 'pos' : ''}`}>
-                  {d.net > 0 ? '+' : d.net < 0 ? '−' : ''}
-                  {money(Math.abs(d.net))}
-                </span>
-              </div>
-              <div className="list">
-                {d.items.map((r) => (
-                  <OpRowView key={r.key} row={r} money={money} onOpen={open} />
-                ))}
-              </div>
-            </div>
-          ))
+          <div className="list">
+            {recent.map((r) => (
+              <OpRowView key={r.key} row={r} money={money} onOpen={open} dateLabel={dayLabel(r.date)} />
+            ))}
+          </div>
         )}
+      </section>
+
+      <section className="card" aria-labelledby="recdep">
+        <div className="card-head">
+          <h2 id="recdep">Dépenses récurrentes</h2>
+          <button type="button" className="link" onClick={() => open({ kind: 'recurring', recKind: 'expense' })}>
+            + Ajouter
+          </button>
+        </div>
+        {recurring.length === 0 ? (
+          <p className="small muted" style={{ margin: 0 }}>Aucune pour l’instant : loyer, abonnements, forfait…</p>
+        ) : (
+          <div className="list">
+            {recurring.map((r) => {
+              const st = periodStatus(data, r, range);
+              return (
+                <div key={r.id} className="list-row op-row">
+                  <button type="button" className="rec-main" onClick={() => open({ kind: 'recurring', id: r.id })}>
+                    <CatIcon id={r.categoryId} fallback={data.categories.find((c) => c.id === r.categoryId)?.icon} size={42} />
+                    <span className="grow" style={{ minWidth: 0 }}>
+                      <span className="op-title ellipsis">{r.description}</span>
+                      <span className="op-sub ellipsis">{scheduleLabel(r)}</span>
+                    </span>
+                  </button>
+                  <div className="rec-side">
+                    <span className="op-amount num">{money(r.amount)}</span>
+                    {st.confirmed ? (
+                      <span className="paid-chip">
+                        <Icon name="check" size={14} strokeWidth={2.4} /> Payé
+                      </span>
+                    ) : st.date ? (
+                      <button type="button" className="pay-btn" onClick={() => open({ kind: 'occurrence', rec: r, date: st.date! })}>
+                        Payé ?
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <p className="tiny" style={{ margin: '12px 0 0' }}>
+          Rien n’est compté tout seul : tu confirmes chaque échéance avec « Payé ? ».
+        </p>
       </section>
     </div>
   );

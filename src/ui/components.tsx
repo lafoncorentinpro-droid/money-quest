@@ -6,7 +6,7 @@ import { back } from './router';
 import { Icon } from './Icon';
 
 /* ---------- Feuille modale accessible ---------- */
-export function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+export function Sheet({ title, subtitle, onClose, children }: { title: string; subtitle?: string; onClose: () => void; children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const [closing, setClosing] = useState(false);
@@ -44,6 +44,7 @@ export function Sheet({ title, onClose, children }: { title: string; onClose: ()
             <Icon name="xmark" size={18} />
           </button>
         </div>
+        {subtitle && <p className="sheet-sub">{subtitle}</p>}
         {children}
       </div>
     </div>
@@ -137,16 +138,19 @@ export function AmountField({
         autoFocus={autoFocus}
         aria-invalid={invalid}
         onChange={(e) => amount.setText(e.target.value)}
-        onBlur={() => amount.setTouched(true)}
+        onBlur={() => amount.text.trim() && amount.setTouched(true)}
       />
     </Field>
   );
 }
 
-export function Switch({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
+export function Switch({ checked, onChange, label, desc, card }: { checked: boolean; onChange: (v: boolean) => void; label: string; desc?: string; card?: boolean }) {
   return (
-    <label className="row-between" style={{ minHeight: 48 }}>
-      <span>{label}</span>
+    <label className={`row-between ${card ? 'switch-card' : ''}`} style={{ minHeight: 48 }}>
+      <span className="sw-text">
+        <span>{label}</span>
+        {desc && <small>{desc}</small>}
+      </span>
       <span className="switch">
         <input type="checkbox" role="switch" checked={checked} onChange={(e) => onChange(e.target.checked)} aria-label={label} />
         <span />

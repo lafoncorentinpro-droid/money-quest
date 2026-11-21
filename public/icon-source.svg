@@ -1,134 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
-  <!-- MONEY QUEST — icône 3D (style « clay ») : renard aventurier + pièce d'or étoilée -->
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0.35" y2="1">
-      <stop offset="0" stop-color="#CFE6F6"/>
-      <stop offset="0.55" stop-color="#9CC6E6"/>
-      <stop offset="1" stop-color="#5E86AA"/>
-    </linearGradient>
-    <radialGradient id="glow" cx="0.3" cy="0.2" r="0.75">
-      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.75"/>
-      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="fur" cx="0.38" cy="0.3" r="0.8">
-      <stop offset="0" stop-color="#FFB46E"/>
-      <stop offset="0.55" stop-color="#EE8B3E"/>
-      <stop offset="1" stop-color="#B9561F"/>
-    </radialGradient>
-    <radialGradient id="ear" cx="0.4" cy="0.3" r="0.9">
-      <stop offset="0" stop-color="#FFA75E"/>
-      <stop offset="1" stop-color="#C2602A"/>
-    </radialGradient>
-    <linearGradient id="earIn" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#6E4630"/>
-      <stop offset="1" stop-color="#F6C9A8"/>
-    </linearGradient>
-    <radialGradient id="cream" cx="0.45" cy="0.25" r="0.85">
-      <stop offset="0" stop-color="#FFFFFF"/>
-      <stop offset="0.7" stop-color="#FFF4E6"/>
-      <stop offset="1" stop-color="#E9D5BF"/>
-    </radialGradient>
-    <radialGradient id="eye" cx="0.35" cy="0.3" r="0.8">
-      <stop offset="0" stop-color="#3F6584"/>
-      <stop offset="1" stop-color="#16293A"/>
-    </radialGradient>
-    <linearGradient id="scarf" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#7FB3E2"/>
-      <stop offset="0.5" stop-color="#4A82BA"/>
-      <stop offset="1" stop-color="#2D5A86"/>
-    </linearGradient>
-    <radialGradient id="gold" cx="0.35" cy="0.3" r="0.85">
-      <stop offset="0" stop-color="#FFF3B8"/>
-      <stop offset="0.45" stop-color="#F6C94F"/>
-      <stop offset="1" stop-color="#C48A1E"/>
-    </radialGradient>
-    <linearGradient id="goldEdge" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#C98E20"/>
-      <stop offset="1" stop-color="#8A5A0E"/>
-    </linearGradient>
-    <radialGradient id="goldIn" cx="0.6" cy="0.7" r="0.8">
-      <stop offset="0" stop-color="#FBD873"/>
-      <stop offset="1" stop-color="#D9A233"/>
-    </radialGradient>
-    <linearGradient id="star" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#FFFBE6"/>
-      <stop offset="1" stop-color="#F2C24A"/>
-    </linearGradient>
-    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
-      <feGaussianBlur in="SourceAlpha" stdDeviation="18"/>
-      <feOffset dx="0" dy="22" result="b"/>
-      <feComponentTransfer><feFuncA type="linear" slope="0.35"/></feComponentTransfer>
-      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="6"/>
-    </filter>
-  </defs>
-
-  <!-- Fond -->
-  <rect id="bgrect" width="1024" height="1024" rx="0" fill="url(#bg)"/>
-  <rect width="1024" height="1024" fill="url(#glow)"/>
-  <!-- collines douces -->
-  <path d="M0 860 C220 790 380 840 520 880 C690 930 860 860 1024 820 L1024 1024 L0 1024 Z" fill="#E9F3FA" opacity="0.55"/>
-  <path d="M0 930 C260 880 520 960 1024 900 L1024 1024 L0 1024 Z" fill="#F5F0E5" opacity="0.7"/>
-
-  <!-- Étincelles -->
-  <g fill="#FFFFFF">
-    <path d="M846 150 l14 38 l38 14 l-38 14 l-14 38 l-14 -38 l-38 -14 l38 -14 Z" opacity="0.95"/>
-    <path d="M168 230 l9 24 l24 9 l-24 9 l-9 24 l-9 -24 l-24 -9 l24 -9 Z" opacity="0.8"/>
-    <path d="M905 330 l7 18 l18 7 l-18 7 l-7 18 l-7 -18 l-18 -7 l18 -7 Z" opacity="0.7"/>
-  </g>
-
-  <!-- Renard -->
-  <g filter="url(#shadow)">
-    <!-- oreilles -->
-    <path d="M300 470 C270 360 290 230 330 150 C352 112 380 118 402 148 C440 200 470 270 486 340 Z" fill="url(#ear)"/>
-    <path d="M724 470 C754 360 734 230 694 150 C672 112 644 118 622 148 C584 200 554 270 538 340 Z" fill="url(#ear)"/>
-    <path d="M336 400 C322 320 334 240 356 196 C366 178 378 180 390 196 C414 236 432 284 442 330 Z" fill="url(#earIn)" opacity="0.85"/>
-    <path d="M688 400 C702 320 690 240 668 196 C658 178 646 180 634 196 C610 236 592 284 582 330 Z" fill="url(#earIn)" opacity="0.85"/>
-    <!-- pointes d'oreilles foncées -->
-    <path d="M318 196 C326 172 334 156 342 144 C356 118 382 120 402 148 C412 162 422 178 430 196 C396 182 352 182 318 196 Z" fill="#4A2E22"/>
-    <path d="M706 196 C698 172 690 156 682 144 C668 118 642 120 622 148 C612 162 602 178 594 196 C628 182 672 182 706 196 Z" fill="#4A2E22"/>
-
-    <!-- tête -->
-    <path d="M512 290 C716 290 812 420 800 560 C790 690 670 778 512 778 C354 778 234 690 224 560 C212 420 308 290 512 290 Z" fill="url(#fur)"/>
-    <!-- mèche du front -->
-    <path d="M470 300 C486 266 506 252 512 238 C522 258 540 270 556 300 C540 292 526 296 512 306 C498 296 484 292 470 300 Z" fill="#F7A05A"/>
-    <!-- touffes blanches des joues -->
-    <path d="M304 598 C266 596 236 604 214 620 C240 628 254 636 262 648 C238 656 224 670 218 688 C254 686 292 684 322 694 Z" fill="url(#cream)"/>
-    <path d="M720 598 C758 596 788 604 810 620 C784 628 770 636 762 648 C786 656 800 670 806 688 C770 686 732 684 702 694 Z" fill="url(#cream)"/>
-    <!-- masque crème -->
-    <path d="M512 560 C610 560 708 590 744 642 C698 734 610 778 512 778 C414 778 326 734 280 642 C316 590 414 560 512 560 Z" fill="url(#cream)"/>
-    <!-- reflet du front -->
-    <ellipse cx="430" cy="370" rx="120" ry="48" fill="#FFFFFF" opacity="0.22" transform="rotate(-14 430 370)"/>
-
-    <!-- yeux -->
-    <ellipse cx="428" cy="530" rx="44" ry="54" fill="url(#eye)"/>
-    <ellipse cx="596" cy="530" rx="44" ry="54" fill="url(#eye)"/>
-    <circle cx="442" cy="508" r="17" fill="#FFFFFF"/>
-    <circle cx="610" cy="508" r="17" fill="#FFFFFF"/>
-    <circle cx="416" cy="554" r="7" fill="#FFFFFF" opacity="0.7"/>
-    <circle cx="584" cy="554" r="7" fill="#FFFFFF" opacity="0.7"/>
-    <!-- joues roses -->
-    <ellipse cx="350" cy="612" rx="40" ry="22" fill="#F49C86" opacity="0.55" filter="url(#soft)"/>
-    <ellipse cx="674" cy="612" rx="40" ry="22" fill="#F49C86" opacity="0.55" filter="url(#soft)"/>
-    <!-- museau -->
-    <ellipse cx="512" cy="616" rx="40" ry="28" fill="#1E3446"/>
-    <ellipse cx="500" cy="606" rx="14" ry="7" fill="#FFFFFF" opacity="0.6"/>
-    <path d="M466 662 Q512 702 558 662" stroke="#1E3446" stroke-width="13" stroke-linecap="round" fill="none"/>
-
-    <!-- écharpe -->
-    <path d="M262 742 C350 800 674 800 762 742 C778 772 776 810 760 836 C672 884 352 884 264 836 C248 810 246 772 262 742 Z" fill="url(#scarf)"/>
-    <path d="M300 772 C400 812 624 812 724 772" stroke="#FFFFFF" stroke-opacity="0.35" stroke-width="10" stroke-linecap="round" fill="none"/>
-  </g>
-
-  <!-- Pièce d'or étoilée -->
-  <g filter="url(#shadow)">
-    <ellipse cx="770" cy="812" rx="158" ry="150" fill="url(#goldEdge)"/>
-    <ellipse cx="770" cy="790" rx="158" ry="150" fill="url(#gold)"/>
-    <ellipse cx="770" cy="790" rx="118" ry="111" fill="url(#goldIn)" stroke="#B37A17" stroke-width="6" stroke-opacity="0.5"/>
-    <path d="M770 702 L795 760 L858 765 L810 806 L825 868 L770 835 L715 868 L730 806 L682 765 L745 760 Z" fill="url(#star)" stroke="#C99025" stroke-width="5" stroke-linejoin="round"/>
-    <path d="M660 720 C690 676 744 652 800 660" stroke="#FFFFFF" stroke-opacity="0.75" stroke-width="16" stroke-linecap="round" fill="none"/>
-    <circle cx="676" cy="752" r="9" fill="#FFFFFF" opacity="0.8"/>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 200 200">
+<rect width="200" height="200" fill="#29465D"/>
+<g transform="translate(9 4) scale(0.91)">
+<path d="M54 92 L58 26 Q60 18 67 23 L104 58 Z" fill="#E8893F" stroke="#E8893F" stroke-width="10" stroke-linejoin="round"/>
+<path d="M146 92 L142 26 Q140 18 133 23 L96 58 Z" fill="#E8893F" stroke="#E8893F" stroke-width="10" stroke-linejoin="round"/>
+<path d="M66 70 L68 40 L88 58 Z" fill="#29465D" stroke="#29465D" stroke-width="6" stroke-linejoin="round"/>
+<path d="M134 70 L132 40 L112 58 Z" fill="#29465D" stroke="#29465D" stroke-width="6" stroke-linejoin="round"/>
+<path d="M100 50 C128 50 160 60 166 84 C170 98 160 110 148 120 L112 158 Q100 170 88 158 L52 120 C40 110 30 98 34 84 C40 60 72 50 100 50 Z" fill="#E8893F"/>
+<path d="M34 86 C52 104 80 112 100 112 C120 112 148 104 166 86 C168 98 160 110 148 120 L112 158 Q100 170 88 158 L52 120 C40 110 32 98 34 86 Z" fill="#FFF8EC"/>
+<path d="M86 104 Q100 98 114 104 L103 128 Q100 132 97 128 Z" fill="#E8893F"/>
+<ellipse cx="78" cy="92" rx="6" ry="7.5" fill="#29465D"/><circle cx="80" cy="89.5" r="2" fill="#FFFFFF"/>
+<ellipse cx="122" cy="92" rx="6" ry="7.5" fill="#29465D"/><circle cx="124" cy="89.5" r="2" fill="#FFFFFF"/>
+<path d="M90 146 Q100 140 110 146 Q108 156 100 158 Q92 156 90 146 Z" fill="#29465D"/>
+</g>
+<circle cx="151" cy="151" r="28" fill="#29465D"/><circle cx="151" cy="151" r="23" fill="#E6C372"/><circle cx="151" cy="151" r="17.94" fill="none" stroke="#C9A04A" stroke-width="1.84"/><polygon points="151.0,139.5 154.0,146.9 161.9,147.4 155.8,152.6 157.8,160.3 151.0,156.1 144.2,160.3 146.2,152.6 140.1,147.4 148.0,146.9" fill="#C9A04A" stroke="#C9A04A" stroke-width="1.38" stroke-linejoin="round"/>
 </svg>

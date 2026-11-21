@@ -6,6 +6,7 @@ import type { AppData, Theme } from '../domain/types';
 import { requestPersistence } from '../store/db';
 import { useStore } from '../store/store';
 import { Confirm, Field, PageHead, Sheet, Switch } from '../ui/components';
+import { Icon } from '../ui/Icon';
 import { MascotSettings } from '../ui/Mascot';
 
 const CURRENCIES = [
@@ -41,7 +42,7 @@ async function shareOrDownload(name: string, content: string, type: string) {
 }
 
 export function Profile() {
-  const { data, dispatch, toast, period, today } = useStore();
+  const { data, dispatch, toast, period } = useStore();
   const s = data.settings;
   const [nick, setNick] = useState(s.nickname);
   const [opening, setOpening] = useState(s.openingBalance ? (s.openingBalance.amount < 0 ? '-' : '') + centsToInput(s.openingBalance.amount) : '');
@@ -100,19 +101,26 @@ export function Profile() {
     <div className="page">
       <PageHead title="Réglages" backTo="accueil" />
 
+      <h2 className="set-head">
+        <Icon name="user" size={18} /> Profil
+      </h2>
       <section className="card stack">
         <Field label="Prénom ou pseudo (facultatif)">
-          <input className="input" value={nick} maxLength={30} onChange={(e) => setNick(e.target.value)} onBlur={() => nick !== s.nickname && set({ nickname: nick.trim() })} />
+          <input className="input" value={nick} maxLength={30} placeholder="Ex. Corentin" onChange={(e) => setNick(e.target.value)} onBlur={() => nick !== s.nickname && set({ nickname: nick.trim() })} />
         </Field>
       </section>
 
-      <section className="card stack" aria-labelledby="compagnon">
-        <h2 id="compagnon">Mon compagnon</h2>
+      <h2 className="set-head">
+        <Icon name="star" size={18} /> Mon compagnon
+      </h2>
+      <section className="card stack">
         <MascotSettings />
       </section>
 
-      <section className="card stack" aria-labelledby="prefs">
-        <h2 id="prefs">Préférences</h2>
+      <h2 className="set-head">
+        <Icon name="sliders" size={18} /> Préférences
+      </h2>
+      <section className="card stack">
         <Field label="Devise" hint="Change uniquement l’affichage : aucun montant n’est converti.">
           <select className="input" value={s.currency} onChange={(e) => set({ currency: e.target.value })}>
             {CURRENCIES.map(([k, l]) => (
@@ -122,8 +130,9 @@ export function Profile() {
             ))}
           </select>
         </Field>
-        <Field label="Thème">
-          <div className="segmented" role="group" aria-label="Thème">
+        <div className="field">
+          <span>Thème</span>
+          <div className="segmented seg-lg" role="group" aria-label="Thème">
             {(
               [
                 ['auto', 'Auto'],
@@ -136,89 +145,135 @@ export function Profile() {
               </button>
             ))}
           </div>
-        </Field>
-        <Switch label="Animations" checked={s.animations} onChange={(v) => set({ animations: v })} />
-        <div className="stack" style={{ gap: 0 }}>
-          <Field label="Solde de départ (facultatif)" hint={`Ajouté au disponible estimé de ${periodLabel(s.openingBalance?.period ?? period, s.monthStartDay)}. Mets « - » devant pour un découvert.`}>
-            <div className="row">
-              <input className="input" inputMode="text" placeholder="0,00 €" value={opening} onChange={(e) => setOpening(e.target.value)} />
-              <button type="button" className="btn" onClick={saveOpening}>
-                OK
-              </button>
-            </div>
-          </Field>
         </div>
+        <Switch label="Animations" checked={s.animations} onChange={(v) => set({ animations: v })} />
       </section>
 
-      <section className="card stack" aria-labelledby="notif">
-        <h2 id="notif">Alertes</h2>
-        <p className="tiny" style={{ margin: 0 }}>
-          Les alertes s’affichent dans l’application, à l’ouverture. Les notifications programmées sur iPhone nécessitent un serveur d’envoi, que cette version n’utilise pas (pour que tes
-          données restent privées).
+      <h2 className="set-head">
+        <Icon name="wallet" size={18} /> Argent de départ
+      </h2>
+      <section className="card stack">
+        <Field label="Solde de départ (facultatif)" hint={`Ajouté au disponible estimé de ${periodLabel(s.openingBalance?.period ?? period, 1).split(' ')[0]}. Mets « − » devant pour un découvert.`}>
+          <div className="row">
+            <input className="input" inputMode="text" placeholder="0,00 €" value={opening} onChange={(e) => setOpening(e.target.value)} />
+            <button type="button" className="btn btn-primary ok-btn" onClick={saveOpening}>
+              OK
+            </button>
+          </div>
+        </Field>
+      </section>
+
+      <h2 className="set-head">
+        <Icon name="bell" size={18} /> Alertes
+      </h2>
+      <section className="card">
+        <div className="set-list">
+          <Switch label="Échéances proches" checked={s.alerts.echeances} onChange={(v) => set({ alerts: { ...s.alerts, echeances: v } })} />
+          <Switch label="Rappel de saisie du jour" checked={s.alerts.rappelSaisie} onChange={(v) => set({ alerts: { ...s.alerts, rappelSaisie: v } })} />
+        </div>
+        <p className="tiny" style={{ margin: '8px 0 0' }}>
+          Les alertes s’affichent dans l’app à l’ouverture. Aucune notification n’est envoyée par un serveur : tes données restent privées.
         </p>
-        <Switch label="Échéances proches" checked={s.alerts.echeances} onChange={(v) => set({ alerts: { ...s.alerts, echeances: v } })} />
-        <Switch label="Rappel de saisie du jour" checked={s.alerts.rappelSaisie} onChange={(v) => set({ alerts: { ...s.alerts, rappelSaisie: v } })} />
       </section>
 
-      <section className="card stack" aria-labelledby="data">
-        <h2 id="data">Mes données</h2>
-        <div className="notice notice-info small">
-          <span aria-hidden>🔒</span>
+      <h2 className="set-head">
+        <Icon name="lock" size={18} /> Mes données
+      </h2>
+      <section className="card stack">
+        <div className="set-info">
+          <Icon name="lock" size={20} />
           <span>
-            Tes données restent sur cet appareil, dans le stockage du navigateur. Rien n’est envoyé sur internet, il n’y a pas de synchronisation entre appareils. Si tu effaces les données de
-            Safari, désinstalles l’app ou perds ton téléphone, elles sont perdues : <strong>exporte une sauvegarde régulièrement</strong> (Fichiers, iCloud Drive…).
+            Tes données restent <strong>sur cet appareil</strong>. Rien n’est envoyé sur internet. Si tu effaces Safari ou perds ton téléphone, elles sont perdues : <strong>exporte une sauvegarde régulièrement</strong>.
           </span>
         </div>
-        <div className={`notice small ${daysSinceBackup === null || daysSinceBackup > 30 ? 'notice-warn' : 'notice-success'}`}>
-          {daysSinceBackup === null ? 'Aucune sauvegarde exportée pour l’instant.' : daysSinceBackup === 0 ? 'Dernière sauvegarde : aujourd’hui.' : `Dernière sauvegarde : il y a ${daysSinceBackup} jour${daysSinceBackup > 1 ? 's' : ''}.`}
+        <div className={`set-backup ${daysSinceBackup === null || daysSinceBackup > 30 ? 'is-warn' : 'is-ok'}`}>
+          <Icon name={daysSinceBackup === null || daysSinceBackup > 30 ? 'warning' : 'check'} size={20} />
+          <span>{daysSinceBackup === null ? 'Aucune sauvegarde exportée pour l’instant' : daysSinceBackup === 0 ? 'Dernière sauvegarde : aujourd’hui' : `Dernière sauvegarde : il y a ${daysSinceBackup} jour${daysSinceBackup > 1 ? 's' : ''}`}</span>
         </div>
-        {persisted === false && (
+        <button type="button" className="btn btn-primary btn-block btn-xl" onClick={exportJson}>
+          <Icon name="download" size={20} strokeWidth={2.2} /> Exporter une sauvegarde
+        </button>
+        <div className="set-list">
+          <button type="button" className="set-row" onClick={exportCsv}>
+            <span className="set-ico">
+              <Icon name="file" size={20} />
+            </span>
+            <span className="grow">
+              <strong>Exporter les opérations</strong>
+              <small>Fichier CSV, pour Excel ou Numbers</small>
+            </span>
+            <Icon name="chevron-right" size={18} />
+          </button>
+          <label className="set-row">
+            <span className="set-ico">
+              <Icon name="upload" size={20} />
+            </span>
+            <span className="grow">
+              <strong>Importer une sauvegarde</strong>
+            </span>
+            <Icon name="chevron-right" size={18} />
+            <input ref={fileRef} type="file" accept="application/json,.json" className="sr-only" onChange={(e) => onFile(e.target.files?.[0])} />
+          </label>
           <button
             type="button"
-            className="btn btn-sm"
+            className="set-row"
             onClick={async () => {
               const ok = await requestPersistence();
               setPersisted(ok);
               toast(ok ? 'Stockage protégé contre l’effacement automatique' : 'Le navigateur n’a pas accordé la protection (installe l’app sur l’écran d’accueil).');
             }}
           >
-            Protéger le stockage
+            <span className="set-ico">
+              <Icon name="lock" size={20} />
+            </span>
+            <span className="grow">
+              <strong>Protéger le stockage</strong>
+              {persisted && <small>Déjà protégé</small>}
+            </span>
+            <Icon name="chevron-right" size={18} />
           </button>
-        )}
-        <button type="button" className="btn btn-primary" onClick={exportJson}>
-          ⬇️ Exporter une sauvegarde (JSON)
-        </button>
-        <button type="button" className="btn" onClick={exportCsv}>
-          📄 Exporter les opérations (CSV)
-        </button>
-        <label className="btn" style={{ position: 'relative' }}>
-          ⬆️ Importer une sauvegarde
-          <input ref={fileRef} type="file" accept="application/json,.json" className="sr-only" onChange={(e) => onFile(e.target.files?.[0])} />
-        </label>
-        <button type="button" className="btn btn-danger" onClick={() => setConfirmReset(true)}>
-          Réinitialiser l’application
-        </button>
+        </div>
       </section>
 
       {!isStandalone && (
-        <section className="card stack" aria-labelledby="install">
-          <h2 id="install">Installer sur iPhone</h2>
-          <ol className="small" style={{ margin: 0, paddingLeft: 20 }}>
-            <li>Ouvre cette page dans <strong>Safari</strong>.</li>
-            <li>
-              Touche le bouton <strong>Partager</strong> (carré avec une flèche).
-            </li>
-            <li>
-              Choisis <strong>« Sur l’écran d’accueil »</strong>, puis « Ajouter ».
-            </li>
-          </ol>
-          <p className="tiny" style={{ margin: 0 }}>
-            L’app fonctionne ensuite hors connexion. Les données de l’app installée et celles de Safari sont séparées : exporte puis importe une sauvegarde si tu as déjà commencé dans Safari.
-          </p>
-        </section>
+        <>
+          <h2 className="set-head">
+            <Icon name="share" size={18} /> Installer sur iPhone
+          </h2>
+          <section className="card stack">
+            <ol className="set-steps">
+              <li>
+                <span>1</span> Ouvre cette page dans Safari.
+              </li>
+              <li>
+                <span>2</span> Touche le bouton Partager.
+              </li>
+              <li>
+                <span>3</span> Choisis « Sur l’écran d’accueil », puis « Ajouter ».
+              </li>
+            </ol>
+            <p className="tiny" style={{ margin: 0 }}>
+              L’app marche ensuite hors connexion. Les données de Safari et de l’app installée sont séparées : pense à exporter puis importer ta sauvegarde.
+            </p>
+          </section>
+        </>
       )}
 
-      <p className="tiny center">MONEY QUEST 1.0 · aucune publicité, aucun traceur, aucun abonnement · {today}</p>
+      <button type="button" className="card set-reset" onClick={() => setConfirmReset(true)}>
+        <span className="set-ico is-danger">
+          <Icon name="trash" size={20} />
+        </span>
+        <span className="grow">
+          <strong>Réinitialiser l’application</strong>
+          <small>Efface toutes tes données sur cet appareil</small>
+        </span>
+      </button>
+
+      <p className="set-foot">
+        <strong>MONEY QUEST 1.0</strong>
+        <br />
+        Aucune publicité · aucun traceur · aucun abonnement
+      </p>
 
       {importRes && (
         <Sheet title="Importer une sauvegarde" onClose={() => setImportRes(null)}>

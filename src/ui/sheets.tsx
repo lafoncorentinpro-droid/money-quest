@@ -4,6 +4,7 @@ import type { Expense, MovementType, RecurringTransaction } from '../domain/type
 import { useStore } from '../store/store';
 import { Sheet } from './components';
 import { Icon } from './Icon';
+import { Mascot } from './Mascot';
 
 /** Ouverture centralisée des formulaires, depuis n'importe quel écran. */
 
@@ -36,17 +37,30 @@ function SheetRenderer({ spec, close, open }: { spec: SheetSpec; close: () => vo
   switch (spec.kind) {
     case 'quick':
       return (
-        <Sheet title="Ajouter" onClose={close}>
+        <Sheet title="Ajouter" subtitle="Qu’est-ce que tu veux noter ?" onClose={close}>
           <div className="stack">
-            <button type="button" className="btn btn-primary btn-block" style={{ minHeight: 60, justifyContent: 'flex-start' }} onClick={() => open({ kind: 'expense' })}>
-              <Icon name="card" size={24} /> Une dépense
-            </button>
-            <button type="button" className="btn btn-block" style={{ minHeight: 60, justifyContent: 'flex-start' }} onClick={() => open({ kind: 'income' })}>
-              <Icon name="arrow-down-circle" size={24} /> Budget de base (salaire…)
-            </button>
-            <button type="button" className="btn btn-block" style={{ minHeight: 60, justifyContent: 'flex-start' }} onClick={() => open({ kind: 'recurring' })}>
-              <Icon name="repeat" size={24} /> Un montant qui revient chaque mois
-            </button>
+            {(
+              [
+                ['expense', 'card', 'is-blue', 'Une dépense', 'Courses, resto, transport… payée ou prévue'],
+                ['income', 'arrow-down-circle', 'is-green', 'Budget de base', 'Salaire, prime, aide… l’argent du mois'],
+                ['recurring', 'repeat', 'is-gold', 'Un montant récurrent', 'Loyer, abonnement, forfait… chaque mois']
+              ] as const
+            ).map(([kind, icon, tone, title, desc]) => (
+              <button key={kind} type="button" className="btn add-option" onClick={() => open({ kind } as SheetSpec)}>
+                <span className={`add-ico ${tone}`}>
+                  <Icon name={icon} size={26} />
+                </span>
+                <span className="grow">
+                  <strong>{title}</strong>
+                  <span>{desc}</span>
+                </span>
+                <Icon name="chevron-right" size={20} />
+              </button>
+            ))}
+          </div>
+          <div className="add-tip">
+            <Mascot id={data.settings.mascot} size={64} hello animate={data.settings.animations} />
+            <div className="speech">Astuce : note tes dépenses le jour même, c’est plus facile !</div>
           </div>
         </Sheet>
       );

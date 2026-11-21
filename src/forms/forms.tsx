@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { formatDateShort, isValidISO, periodOf } from '../domain/dates';
+import { addMonthsClamped, formatDateShort, isValidISO, parseISO, periodLabel, periodOf } from '../domain/dates';
 import { GOAL_TEMPLATES, INCOME_TYPE_LABEL } from '../domain/defaults';
-import { goalBalance, netExpense, refundedAmount } from '../domain/finance';
+import { goalBalance, monthSummary, netExpense, refundedAmount } from '../domain/finance';
 import { FREQUENCY_LABEL } from '../domain/recurring';
 import type { Expense, ExpenseStatus, Frequency, Income, IncomeStatus, IncomeType, MovementType, Nature, RecurringTransaction, SavingsGoal } from '../domain/types';
 import { useStore } from '../store/store';
+import { CatIcon } from '../ui/CatIcon';
 import { AmountField, Confirm, Field, Sheet, Switch, useAmount } from '../ui/components';
+import { Icon } from '../ui/Icon';
 
 /* ======================= Dépense ======================= */
 
@@ -73,8 +75,8 @@ export function ExpenseForm({ existing, onClose, preset }: { existing?: Expense;
           <div className="cat-grid">
             {cats.map((c) => (
               <button type="button" key={c.id} className="cat-btn" aria-pressed={categoryId === c.id} onClick={() => setCategoryId(c.id)}>
-                <span aria-hidden>{c.icon}</span>
-                <span>{c.name}</span>
+                <CatIcon id={c.id} fallback={c.icon} size={38} />
+                <span>{c.name === 'Téléphone et Internet' ? 'Téléphone' : c.name === 'Courses alimentaires' ? 'Courses' : c.name}</span>
               </button>
             ))}
           </div>
@@ -84,13 +86,22 @@ export function ExpenseForm({ existing, onClose, preset }: { existing?: Expense;
           <Field label="Date" error={tried && errors.date ? 'Date invalide' : undefined}>
             <input type="date" className="input" value={date} onChange={(e) => setDate(e.target.value)} required />
           </Field>
-          <Field label="Statut">
-            <select className="input" value={status} onChange={(e) => setStatus(e.target.value as ExpenseStatus)}>
-              <option value="realisee">Payée</option>
-              <option value="prevue">Prévue</option>
-              <option value="annulee">Annulée</option>
-            </select>
-          </Field>
+          <div className="field">
+            <span>Statut</span>
+            <div className="segmented seg-lg" role="group" aria-label="Statut">
+              {(
+                [
+                  ['realisee', 'Payée'],
+                  ['prevue', 'Prévue'],
+                  ...(existing ? ([['annulee', 'Annulée']] as const) : [])
+                ] as [ExpenseStatus, string][]
+              ).map(([k, l]) => (
+                <button key={k} type="button" aria-pressed={status === k} onClick={() => setStatus(k)}>
+                  {l}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
         <Field label="Libellé (facultatif)">
           <input className="input" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ex. Marché du samedi" maxLength={120} />
@@ -106,8 +117,8 @@ export function ExpenseForm({ existing, onClose, preset }: { existing?: Expense;
           </select>
         </Field>
         {!showMore ? (
-          <button type="button" className="link" onClick={() => setShowMore(true)}>
-            + Type et note
+          <button type="button" className="more-link" onClick={() => setShowMore(true)}>
+            <Icon name="plus" size={20} strokeWidth={2.2} /> Type et note
           </button>
         ) : (
           <>
@@ -126,8 +137,8 @@ export function ExpenseForm({ existing, onClose, preset }: { existing?: Expense;
         )}
         {status === 'prevue' && <div className="notice notice-info small">Une dépense prévue n’est pas comptée dans les dépenses payées tant que tu ne la passes pas en « Payée ».</div>}
 
-        <button type="submit" className="btn btn-primary btn-block">
-          {existing ? 'Enregistrer les modifications' : 'Ajouter la dépense'}
+        <button type="submit" className="btn btn-primary btn-block btn-xl">
+          <Icon name="check" size={20} strokeWidth={2.4} /> {existing ? 'Enregistrer les modifications' : 'Ajouter la dépense'}
         </button>
       </form>
 
@@ -215,20 +226,33 @@ export function ExpenseForm({ existing, onClose, preset }: { existing?: Expense;
 /* ======================= Revenu ======================= */
 
 export function IncomeForm({ existing, onClose }: { existing?: Income; onClose: () => void }) {
-  const { dispatch, defaultDate, toast, money } = useStore();
+  const { data, dispatch, defaultDate, toast, money } = useStore();
   const amount = useAmount(existing?.amount);
+  const [repeat, setRepeat] = useState(false);
   const [type, setType] = useState<IncomeType>(existing?.type ?? 'salaire');
   const [date, setDate] = useState(existing?.date ?? defaultDate);
   const [description, setDescription] = useState(existing?.description ?? '');
   const [status, setStatus] = useState<IncomeStatus>(existing?.status ?? 'recu');
-  const [note, setNote] = useState(existing?.note ?? '');
+  const [note] = useState(existing?.note ?? '');
   const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const month = isValidISO(date) ? periodOf(date, 1) : undefined;
+  const monthName = month ? periodLabel(month, 1).split(' ')[0] : 'ce mois';
+  const preview = month && amount.valid && status === 'recu' ? monthSummary(data, month).incomesReceived - (existing && existing.status === 'recu' && periodOf(existing.date, 1) === month ? existing.amount : 0) + amount.cents! : null;
 
   const save = () => {
     amount.setTouched(true);
     if (!amount.valid || !isValidISO(date)) return;
     const fields = { amount: amount.cents!, type, date, description: description.trim() || INCOME_TYPE_LABEL[type], status, note: note.trim() || undefined };
     const ok = existing ? dispatch({ type: 'income/update', income: { ...existing, ...fields } }) : dispatch({ type: 'income/add', income: fields });
+    if (ok && repeat && !existing) {
+      // Revient chaque mois : la récurrence commence le mois suivant (pas de doublon avec cette entrée)
+      const { y, m, d } = parseISO(date);
+      dispatch({
+        type: 'recurring/add',
+        recurring: { kind: 'income', amount: fields.amount, description: fields.description, incomeType: type, nature: 'fixe', frequency: 'mensuel', startDate: addMonthsClamped(y, m, d, 1), active: true, skipped: [] }
+      });
+    }
     if (ok) {
       toast(existing ? 'Budget de base modifié' : 'Ajouté au budget de base', 'success');
       onClose();
@@ -236,7 +260,7 @@ export function IncomeForm({ existing, onClose }: { existing?: Income; onClose: 
   };
 
   return (
-    <Sheet title={existing ? 'Modifier' : 'Ajouter au budget de base'} onClose={onClose}>
+    <Sheet title="Budget de base" subtitle={`L’argent dont tu disposes pour ${monthName} : salaire, aides, primes…`} onClose={onClose}>
       <form
         className="stack"
         onSubmit={(e) => {
@@ -244,37 +268,63 @@ export function IncomeForm({ existing, onClose }: { existing?: Income; onClose: 
           save();
         }}
       >
-        <Field label="Nom (ex. salaire)">
+        <AmountField amount={amount} big autoFocus={!existing} />
+        <Field label="Nom">
           <input className="input" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={`Ex. ${INCOME_TYPE_LABEL[type]}`} maxLength={120} />
         </Field>
-        <AmountField amount={amount} big />
-        <div className="chips" role="group" aria-label="Type" style={{ flexWrap: 'wrap' }}>
-          {(Object.keys(INCOME_TYPE_LABEL) as IncomeType[]).map((t) => (
-            <button type="button" key={t} className="chip" aria-pressed={type === t} onClick={() => setType(t)}>
-              {INCOME_TYPE_LABEL[t]}
-            </button>
-          ))}
+        <div className="field">
+          <span>Type de revenu</span>
+          <div className="chips chips-wrap" role="group" aria-label="Type de revenu">
+            {(Object.keys(INCOME_TYPE_LABEL) as IncomeType[]).map((t) => (
+              <button type="button" key={t} className="chip" aria-pressed={type === t} onClick={() => setType(t)}>
+                {INCOME_TYPE_LABEL[t]}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="grid-2">
           <Field label="Date de réception">
             <input type="date" className="input" value={date} onChange={(e) => setDate(e.target.value)} />
           </Field>
-          <Field label="Statut">
-            <select className="input" value={status} onChange={(e) => setStatus(e.target.value as IncomeStatus)}>
-              <option value="recu">Reçu</option>
-              <option value="prevu">Prévu</option>
-              <option value="annule">Annulé</option>
-            </select>
-          </Field>
+          <div className="field">
+            <span>Statut</span>
+            <div className="segmented seg-lg" role="group" aria-label="Statut">
+              {(
+                [
+                  ['recu', 'Reçu'],
+                  ['prevu', 'Prévu'],
+                  ...(existing ? ([['annule', 'Annulé']] as const) : [])
+                ] as [IncomeStatus, string][]
+              ).map(([k, l]) => (
+                <button key={k} type="button" aria-pressed={status === k} onClick={() => setStatus(k)}>
+                  {l}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
-        <Field label="Note (facultatif)">
-          <textarea className="input" value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} />
-        </Field>
+        {!existing && <Switch card label="Revient chaque mois" desc="Le programmer comme montant récurrent" checked={repeat} onChange={setRepeat} />}
+        {preview !== null && (
+          <div className="preview-ok">
+            <span className="preview-ico">
+              <Icon name="arrow-down-circle" size={22} />
+            </span>
+            <span>
+              Ton budget de {monthName} passera à <strong className="num">{money(preview)}</strong>.
+            </span>
+          </div>
+        )}
         {type === 'remboursement' && (
           <div className="notice notice-info small">Pour un remboursement lié à une dépense précise (ex. mutuelle), ouvre plutôt la dépense et ajoute-le dedans : il ne sera pas compté deux fois.</div>
         )}
-        <button type="submit" className="btn btn-primary btn-block">
-          {existing ? 'Enregistrer' : 'Ajouter'}
+        <button type="submit" className="btn btn-primary btn-block btn-xl">
+          {existing ? (
+            'Enregistrer'
+          ) : (
+            <>
+              <Icon name="plus" size={20} strokeWidth={2.4} /> Ajouter au budget
+            </>
+          )}
         </button>
         {existing && (
           <button type="button" className="btn btn-danger btn-block" onClick={() => setConfirmDelete(true)}>
@@ -346,7 +396,7 @@ export function RecurringForm({ existing, kind: kindProp, onClose }: { existing?
   };
 
   return (
-    <Sheet title={existing ? 'Modifier la récurrence' : kind === 'income' ? 'Budget de base récurrent' : 'Charge récurrente'} onClose={onClose}>
+    <Sheet title={existing ? 'Modifier' : 'Montant récurrent'} onClose={onClose}>
       <form
         className="stack"
         onSubmit={(e) => {
@@ -364,29 +414,37 @@ export function RecurringForm({ existing, kind: kindProp, onClose }: { existing?
             </button>
           </div>
         )}
-        <AmountField amount={amount} big />
+        <AmountField amount={amount} big autoFocus={!existing} />
         <Field label="Nom" error={tried && descErr ? 'Donne un nom, ex. Loyer' : undefined}>
           <input className="input" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={kind === 'income' ? 'Ex. Salaire' : 'Ex. Loyer, Netflix…'} maxLength={80} />
         </Field>
         {kind === 'expense' ? (
-          <div className="grid-2">
+          <div className="rec-grid">
             <Field label="Catégorie">
-              <select className="input" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+              <span className="select-ico">
+                <CatIcon id={categoryId} fallback={data.categories.find((c) => c.id === categoryId)?.icon} size={32} />
+              </span>
+              <select className="input input-ico" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
                 {data.categories
                   .filter((c) => !c.archived || c.id === categoryId)
                   .map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.icon} {c.name}
+                      {c.name}
                     </option>
                   ))}
               </select>
             </Field>
-            <Field label="Type">
-              <select className="input" value={nature} onChange={(e) => setNature(e.target.value as Nature)}>
-                <option value="fixe">Fixe</option>
-                <option value="variable">Variable</option>
-              </select>
-            </Field>
+            <div className="field">
+              <span>Type</span>
+              <div className="segmented seg-lg" role="group" aria-label="Type">
+                <button type="button" aria-pressed={nature === 'fixe'} onClick={() => setNature('fixe')}>
+                  Fixe
+                </button>
+                <button type="button" aria-pressed={nature === 'variable'} onClick={() => setNature('variable')}>
+                  Variable
+                </button>
+              </div>
+            </div>
           </div>
         ) : (
           <Field label="Type">
@@ -399,27 +457,34 @@ export function RecurringForm({ existing, kind: kindProp, onClose }: { existing?
             </select>
           </Field>
         )}
-        <Field label="Fréquence">
-          <select className="input" value={frequency} onChange={(e) => setFrequency(e.target.value as Frequency)}>
+        <div className="field">
+          <span>Fréquence</span>
+          <div className="chips chips-wrap" role="group" aria-label="Fréquence">
             {Object.entries(FREQUENCY_LABEL).map(([k, v]) => (
-              <option key={k} value={k}>
+              <button key={k} type="button" className="chip" aria-pressed={frequency === k} onClick={() => setFrequency(k as Frequency)}>
                 {v}
-              </option>
+              </button>
             ))}
-          </select>
-        </Field>
+          </div>
+        </div>
         <div className="grid-2">
-          <Field label="Première échéance" hint="Le jour sert pour les suivantes">
+          <Field label="Première échéance">
             <input type="date" className="input" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
           </Field>
           <Field label="Fin (facultatif)" error={tried && endErr ? 'Après le début' : undefined}>
             <input type="date" className="input" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
           </Field>
         </div>
-        <Switch label="Active" checked={active} onChange={setActive} />
-        <div className="notice notice-info small">Les échéances apparaissent comme « prévues ». Elles ne comptent comme payées ou reçues que lorsque tu les confirmes.</div>
-        <button type="submit" className="btn btn-primary btn-block">
-          {existing ? 'Enregistrer' : 'Programmer'}
+        <p className="tiny" style={{ margin: '-6px 0 0' }}>
+          Le jour choisi sert pour toutes les échéances suivantes.
+        </p>
+        <Switch card label="Active" desc={active ? 'Les prochaines échéances seront prévues' : 'En pause : aucune échéance prévue'} checked={active} onChange={setActive} />
+        <div className="notice-bell">
+          <Icon name="bell" size={22} />
+          <span>Les échéances apparaissent comme « prévues ». Elles ne comptent comme payées que lorsque tu les confirmes.</span>
+        </div>
+        <button type="submit" className="btn btn-primary btn-block btn-xl">
+          <Icon name="calendar" size={20} strokeWidth={2.2} /> {existing ? 'Enregistrer' : 'Programmer'}
         </button>
         {existing && (
           <button type="button" className="btn btn-danger btn-block" onClick={() => setConfirmDelete(true)}>

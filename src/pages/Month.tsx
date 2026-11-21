@@ -7,7 +7,6 @@ import type { PeriodKey } from '../domain/types';
 import { useStore } from '../store/store';
 import { Empty, Progress } from '../ui/components';
 import { Mascot } from '../ui/Mascot';
-import { RecurringExpensesCard } from './RecurringCard';
 import { Icon } from '../ui/Icon';
 import { go } from '../ui/router';
 import { useSheets } from '../ui/sheets';
@@ -18,43 +17,33 @@ const SHORT = ['JANV.', 'FÉVR.', 'MARS', 'AVR.', 'MAI', 'JUIN', 'JUIL.', 'AOÛT
 /* ======================= Sélecteur de mois ======================= */
 
 export function MonthStrip() {
-  const { data, month, setMonth, period: current } = useStore();
+  const { month, setMonth, period: current } = useStore();
   const ref = useRef<HTMLDivElement>(null);
   const months = useMemo(() => Array.from({ length: 25 }, (_, i) => shiftPeriod(month, i - 12)), [month]);
   useEffect(() => {
     ref.current?.querySelector('[aria-pressed="true"]')?.scrollIntoView({ inline: 'center', block: 'nearest' });
   }, [month]);
-  const status = (p: PeriodKey) => {
-    if (p === current) return 'En cours';
-    const f = monthFlow(data, p);
-    if (p < current) return f.stage === 'revenus' ? 'À consulter' : 'Terminé';
-    return f.stage === 'revenus' ? 'À préparer' : 'Préparé';
-  };
-  const { y } = parsePeriod(month);
+  const status = (p: PeriodKey) => (p === current ? 'En cours' : p < current ? 'Clos' : 'À venir');
   return (
     <section className="stack" style={{ gap: 8 }} aria-label="Choisir le mois">
-      <div className="row-between">
-        <span className="tiny" style={{ fontWeight: 700, letterSpacing: '0.08em' }}>
-          {y}
-        </span>
-        {month !== current && (
-          <button type="button" className="link" onClick={() => setMonth(current)}>
-            Revenir au mois en cours
-          </button>
-        )}
-      </div>
       <div className="month-strip" ref={ref}>
         {months.map((p) => {
           const { y: py, m } = parsePeriod(p);
+          const st = status(p);
           return (
             <button key={p} type="button" className={`month-chip ${p === current ? 'is-current' : ''}`} aria-pressed={p === month} onClick={() => setMonth(p)}>
               <strong>{SHORT[m - 1]}</strong>
               <span>{py}</span>
-              <small>{status(p)}</small>
+              {p === month && p === current ? <small className="chip-now">En cours</small> : <small className={`chip-st ${p < current ? 'is-closed' : ''}`}>{st}</small>}
             </button>
           );
         })}
       </div>
+      {month !== current && (
+        <button type="button" className="link" style={{ alignSelf: 'flex-start' }} onClick={() => setMonth(current)}>
+          Revenir au mois en cours
+        </button>
+      )}
     </section>
   );
 }
@@ -66,8 +55,7 @@ export function StepNav({ active }: { active: string }) {
   const f = monthFlow(data, month);
   const steps: [string, string, boolean][] = [
     ['revenus', '1 · Budget de base', f.stage !== 'revenus'],
-    ['depenses', '2 · Dépenses', f.stage === 'epargne' || f.stage === 'complet'],
-    ['bilan', 'Bilan', false]
+    ['depenses', '2 · Dépenses', f.stage === 'epargne' || f.stage === 'complet']
   ];
   return (
     <nav className="segmented" aria-label="Étapes du mois">
@@ -84,144 +72,92 @@ export function StepNav({ active }: { active: string }) {
   );
 }
 
-function MonthTotals() {
-  const { data, month, money } = useStore();
-  const f = monthFlow(data, month);
-  return (
-    <div className="grid-2">
-      <div className="stat">
-        <div className="label">Budget de base</div>
-        <div className="value num pos">{money(f.incomesReceived)}</div>
-      </div>
-      <div className="stat">
-        <div className="label">Dépenses</div>
-        <div className="value num">{money(f.expensesPaid)}</div>
-      </div>
-    </div>
-  );
-}
-
-/* ======================= Mon mois ======================= */
+/* ======================= Mon mois (maquette 02-Mon-argent) ======================= */
 
 export function MonthOverview() {
   const { data, month, money, period: current } = useStore();
-  const open = useSheets();
-  const sd = data.settings.monthStartDay;
   const f = monthFlow(data, month);
-  const label = periodLabel(month, sd);
-  const fox =
-    f.stage === 'revenus'
-      ? { mood: 'accueil' as const, text: `Une nouvelle aventure commence ! Ouvrons le journal de ${label} avec ton budget de base.` }
-      : f.stage === 'depenses'
-        ? { mood: 'concentre' as const, text: 'Les ressources du mois sont notées. Suivons maintenant les pièces utilisées.' }
-        : f.stage === 'epargne'
-          ? { mood: 'exploration' as const, text: 'Il reste à remplir le coffre aux trésors, à ton rythme, même un petit peu.' }
-          : { mood: 'fier' as const, text: 'Les trois étapes du mois sont en route. Le bilan t’attend quand tu veux.' };
-
-  const cards = [
-    {
-      k: 'revenus',
-      n: 1,
-      title: 'Budget de base',
-      icon: 'arrow-down-circle' as const,
-      value: money(f.incomesReceived),
-      sub: f.incomesExpected > f.incomesReceived ? `${money(f.incomesExpected - f.incomesReceived)} encore attendus` : data.incomes.length ? 'Ressources du mois' : 'À enregistrer en premier',
-      action: () => open({ kind: 'income' }),
-      actionLabel: '+ Ajouter au budget'
-    },
-    {
-      k: 'depenses',
-      n: 2,
-      title: 'Dépenses',
-      icon: 'card' as const,
-      value: money(f.expensesPaid),
-      sub: f.expensesPlanned > 0 ? `+ ${money(f.expensesPlanned)} prévues` : 'Dépenses payées',
-      action: () => open({ kind: 'expense' }),
-      actionLabel: '+ Dépense'
-    }
-  ];
+  const label = periodLabel(month, 1);
+  const r = f.range;
+  const nIncomes = data.incomes.filter((i) => i.status === 'recu' && inRange(i.date, r)).length;
+  const nExpenses = data.expenses.filter((e) => e.status === 'realisee' && inRange(e.date, r)).length;
+  const past = month < current;
+  const future = month > current;
+  const budgetDone = nIncomes > 0;
+  const text = past
+    ? 'Ce mois est clos. Son bilan t’attend, jette un œil à ce qu’il te reste.'
+    : !budgetDone
+      ? `Une nouvelle aventure commence ! Ouvrons ${label} avec ton budget de base.`
+      : 'Belle progression ! Le budget est posé, il reste à suivre les dépenses jusqu’au bilan.';
 
   return (
     <>
       <MonthStrip />
-      <section className="card card-accent stack">
-        <div>
-          <h2 style={{ textTransform: 'capitalize' }}>{label}</h2>
-          <div className="small muted">Ton aventure financière du mois{month === current ? '' : month < current ? ' · mois passé' : ' · mois à venir'}</div>
+      <section className="month-card">
+        <h2 style={{ textTransform: 'capitalize' }}>{label}</h2>
+        <div className="month-sub">Ton aventure financière du mois{past ? ' · mois clos' : future ? ' · mois à venir' : ''}</div>
+        <div className="month-talk">
+          <Mascot id={data.settings.mascot} size={104} hello={!budgetDone} animate={data.settings.animations} />
+          <div className="speech">{text}</div>
         </div>
-        <div className="fox-bubble">
-          <Mascot id={data.settings.mascot} size={64} hello={fox.mood === 'accueil'} animate={data.settings.animations} />
-          <div className="speech">{fox.text}</div>
+        <div className="month-rest">
+          <div>
+            <strong>Reste disponible</strong>
+            <span>Budget de base − dépenses payées</span>
+          </div>
+          <span className={`num ${f.resteDisponible < 0 ? 'neg' : ''}`}>{money(f.resteDisponible)}</span>
         </div>
-        <div className="row-between">
-          <span className="muted small">Reste disponible</span>
-          <strong className={`num ${f.resteDisponible < 0 ? 'neg' : ''}`} style={{ fontSize: 'var(--fs-title1)', fontFamily: 'var(--font-title)' }}>
-            {money(f.resteDisponible)}
-          </strong>
-        </div>
-        <p className="tiny" style={{ margin: 0 }}>
-          Budget de base − dépenses payées.
-          {f.extras !== 0 && ` Avec le report / solde de départ : ${money(f.resteDisponible + f.extras)}.`}
-        </p>
+        <svg className="month-hills" viewBox="0 0 400 40" preserveAspectRatio="none" aria-hidden>
+          <path d="M0 40 L0 26 L50 8 L95 30 L150 12 L205 32 L262 6 L320 30 L362 14 L400 24 L400 40Z" />
+        </svg>
       </section>
 
-      <MonthTotals />
-
-      <RecurringExpensesCard />
-
-      <ol className="stack" style={{ listStyle: 'none', margin: 0, padding: 0 }} aria-label="Parcours du mois">
-        {cards.map((c) => {
-          const isNext = f.stage === c.k;
-          return (
-            <li key={c.k} className={`card step-card ${isNext ? 'is-next' : ''}`}>
-              <button type="button" className="step-main" onClick={() => go(`argent/${c.k}`)}>
-                <span className="step-num" aria-hidden>
-                  {c.n}
-                </span>
-                <span className="icon-bubble" aria-hidden>
-                  <Icon name={c.icon} size={22} />
-                </span>
-                <span className="grow" style={{ minWidth: 0, textAlign: 'left' }}>
-                  <span className="row-between">
-                    <strong>{c.title}</strong>
-                    <span className="num" style={{ fontWeight: 650 }}>
-                      {c.value}
-                    </span>
-                  </span>
-                  <span className="tiny" style={{ display: 'block' }}>
-                    {isNext ? '👉 Prochaine étape · ' : ''}
-                    {c.sub}
-                  </span>
-                </span>
-                <Icon name="chevron-right" size={18} className="muted" />
-              </button>
-              {isNext && (
-                <button type="button" className="btn btn-primary btn-block" onClick={c.action} style={{ marginTop: 10 }}>
-                  {c.actionLabel}
-                </button>
-              )}
-            </li>
-          );
-        })}
-        <li className="card step-card">
-          <button type="button" className="step-main" onClick={() => go('graphiques')}>
-            <span className="step-num" aria-hidden>
-              ★
-            </span>
-            <span className="icon-bubble" aria-hidden>
-              📜
-            </span>
-            <span className="grow" style={{ textAlign: 'left' }}>
-              <strong>Bilan du mois</strong>
-              <span className="tiny" style={{ display: 'block' }}>
-                Ce qu’il te reste, en graphique
+      <h2 className="section-title">Les étapes du mois</h2>
+      <ol className="timeline" aria-label="Étapes du mois">
+        <li className={budgetDone ? 'is-done' : 'is-current'}>
+          <span className="tl-dot">{budgetDone ? <Icon name="check" size={20} strokeWidth={2.6} /> : '1'}</span>
+          <button type="button" className="tl-card" onClick={() => go('argent/revenus')}>
+            <span className="grow">
+              <strong>Budget de base</strong>
+              <span className="tl-meta">
+                <span className={`tag ${budgetDone ? 'tag-ok' : 'tag-info'}`}>{budgetDone ? 'Validé' : 'À faire'}</span>
+                {nIncomes} entrée{nIncomes > 1 ? 's' : ''}
               </span>
             </span>
-            <Icon name="chevron-right" size={18} className="muted" />
+            <span className="tl-amount num">{money(f.incomesReceived)}</span>
+          </button>
+        </li>
+        <li className={budgetDone && !past ? 'is-current' : past ? 'is-done' : ''}>
+          <span className="tl-dot">{past ? <Icon name="check" size={20} strokeWidth={2.6} /> : '2'}</span>
+          <button type="button" className={`tl-card ${budgetDone && !past ? 'is-active' : ''}`} onClick={() => go('argent/depenses')}>
+            <span className="grow">
+              <strong>Dépenses</strong>
+              <span className="tl-meta">
+                <span className={`tag ${past ? 'tag-ok' : 'tag-info'}`}>{past ? 'Clos' : future ? 'À venir' : 'En cours'}</span>
+              </span>
+              <span className="tl-note">
+                {nExpenses} opération{nExpenses > 1 ? 's' : ''} payée{nExpenses > 1 ? 's' : ''}
+              </span>
+            </span>
+            <span className="tl-amount num">{money(f.expensesPaid)}</span>
+          </button>
+        </li>
+        <li className="is-star">
+          <span className="tl-dot">
+            <Icon name="star" size={20} strokeWidth={2} />
+          </span>
+          <button type="button" className="tl-card" onClick={() => go('graphiques')}>
+            <span className="grow">
+              <strong>Bilan du mois</strong>
+              <span className="tl-meta">
+                <span className="tag tag-gold">Le {formatDateShort(r.end)}</span>
+              </span>
+              <span className="tl-note">Ce qu’il te reste, en graphique</span>
+            </span>
+            <Icon name="chevron-right" size={20} />
           </button>
         </li>
       </ol>
-
     </>
   );
 }

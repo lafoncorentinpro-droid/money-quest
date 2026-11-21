@@ -72,3 +72,19 @@ export const FREQUENCY_LABEL: Record<string, string> = {
   trimestriel: 'Chaque trimestre',
   annuel: 'Chaque année'
 };
+
+/** État d'une récurrence sur une période : son échéance du mois et si elle est confirmée (payée / reçue). */
+export function periodStatus(data: Pick<AppData, 'incomes' | 'expenses'>, rec: RecurringTransaction, range: DateRange): { date?: ISODate; confirmed: boolean } {
+  const date = occurrenceDates(rec, range).find((d) => !rec.skipped.includes(d));
+  return { date, confirmed: !!date && isConfirmed(data, rec, date) };
+}
+
+/** Libellé de rythme lisible : « Le 5 de chaque mois », « Chaque semaine »… */
+export function scheduleLabel(rec: Pick<RecurringTransaction, 'frequency' | 'startDate'>): string {
+  const { d, m } = parseISO(rec.startDate);
+  const MONTHS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+  if (rec.frequency === 'hebdomadaire') return 'Chaque semaine';
+  if (rec.frequency === 'trimestriel') return `Le ${d} tous les 3 mois`;
+  if (rec.frequency === 'annuel') return `Le ${d} ${MONTHS[m - 1]} chaque année`;
+  return `Le ${d} de chaque mois`;
+}

@@ -390,3 +390,15 @@ describe('migration v3 : compagnon', () => {
     expect(initialData().settings.mascot).toBeUndefined();
   });
 });
+
+describe('récurrences : état du mois et libellé', () => {
+  it('indique l’échéance du mois et si elle est payée', async () => {
+    const { periodStatus, scheduleLabel } = await import('../src/domain/recurring');
+    const rec = { id: 'r1', kind: 'expense', amount: 72000, description: 'Loyer', categoryId: 'logement', nature: 'fixe', frequency: 'mensuel', startDate: '2026-01-05', active: true, skipped: [], createdAt: '', updatedAt: '' } as never;
+    const nov = { start: '2026-11-01', end: '2026-11-30' };
+    expect(periodStatus({ incomes: [], expenses: [] }, rec, nov)).toEqual({ date: '2026-11-05', confirmed: false });
+    const paid = { incomes: [], expenses: [{ recurringId: 'r1', occurrenceDate: '2026-11-05' }] } as never;
+    expect(periodStatus(paid, rec, nov).confirmed).toBe(true);
+    expect(scheduleLabel(rec)).toBe('Le 5 de chaque mois');
+  });
+});

@@ -25,20 +25,28 @@ const TABS = [
   },
 ];
 
-function TabBar({ current }: { current: string }) {
+/** Barre du bas : Accueil · bouton + au centre · Mon Argent (maquettes). */
+function TabBar({ current, onAdd }: { current: string; onAdd: () => void }) {
   const idx = Math.max(0, TABS.findIndex((t) => t.id === current));
+  const tab = (t: (typeof TABS)[number]) => (
+    <a key={t.id} href={`#/${t.id}`} className="tab" aria-current={current === t.id ? 'page' : undefined}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        {t.icon}
+      </svg>
+      {t.label}
+    </a>
+  );
   return (
     <nav className="tabbar" aria-label="Navigation principale">
       <div className="tabbar-inner">
-        <span className="tab-indicator" style={{ transform: `translateX(${idx * 100}%)` }} aria-hidden />
-        {TABS.map((t) => (
-          <a key={t.id} href={`#/${t.id}`} className="tab" aria-current={current === t.id ? 'page' : undefined}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              {t.icon}
-            </svg>
-            {t.label}
-          </a>
-        ))}
+        <span className="tab-indicator" style={{ transform: `translateX(${idx * 200}%)` }} aria-hidden />
+        {tab(TABS[0])}
+        <div className="tab-center">
+          <button type="button" className="fab" aria-label="Ajouter une opération" onClick={onAdd}>
+            <Icon name="plus" size={30} strokeWidth={2.4} />
+          </button>
+        </div>
+        {tab(TABS[1])}
       </div>
     </nav>
   );
@@ -161,10 +169,7 @@ function Shell() {
           {page}
         </div>
       </main>
-      <button type="button" className="fab" aria-label="Ajouter une opération" onClick={() => open({ kind: 'quick' })}>
-        <Icon name="plus" size={30} strokeWidth={2.4} />
-      </button>
-      <TabBar current={tab === 'argent' ? 'argent' : 'accueil'} />
+      <TabBar current={tab === 'argent' ? 'argent' : 'accueil'} onAdd={() => open({ kind: 'quick' })} />
       {!data.settings.mascot && <MascotPicker />}
       <Splash animations={data.settings.animations} mascot={data.settings.mascot} />
       {celebration && data.settings.animations && <Celebrate c={celebration} onClose={next} />}

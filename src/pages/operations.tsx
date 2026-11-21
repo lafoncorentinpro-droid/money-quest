@@ -3,6 +3,7 @@ import { INCOME_TYPE_LABEL } from '../domain/defaults';
 import { isFullyRefunded, netExpense } from '../domain/finance';
 import { pendingOccurrences } from '../domain/recurring';
 import type { AppData, DateRange, RecurringTransaction } from '../domain/types';
+import { CatIcon, hasCatIcon } from '../ui/CatIcon';
 import type { SheetSpec } from '../ui/sheets';
 
 /** Vue unifiée des opérations d'une plage, pour les listes et le calendrier. */
@@ -17,6 +18,8 @@ export interface OpRow {
   sign: '+' | '−' | '⇄';
   title: string;
   subtitle: string;
+  /** Libellé court (catégorie) pour les listes compactes. */
+  label: string;
   icon: string;
   planned: boolean;
   cancelled: boolean;
@@ -44,7 +47,8 @@ export function buildRows(data: AppData, range: DateRange, includePlanned = true
       sign: '−',
       title: e.description || c?.name || 'Dépense',
       subtitle:
-        [e.description ? c?.name : 'Dépense', e.nature === 'fixe' ? 'fixe' : 'variable', refunded ? (isFullyRefunded(e) ? 'remboursée' : 'remb. partiel') : null].filter(Boolean).join(' · '),
+        [c?.name ?? 'Dépense', e.nature === 'fixe' ? 'Fixe' : 'Variable', refunded ? (isFullyRefunded(e) ? 'remboursée' : 'remb. partiel') : null].filter(Boolean).join(' · '),
+      label: c?.name ?? 'Dépense',
       icon: c?.icon ?? '🪙',
       planned: e.status === 'prevue',
       cancelled: e.status === 'annulee',
@@ -63,7 +67,8 @@ export function buildRows(data: AppData, range: DateRange, includePlanned = true
       amount: i.amount,
       sign: '+',
       title: i.description || INCOME_TYPE_LABEL[i.type],
-      subtitle: i.description && i.description !== INCOME_TYPE_LABEL[i.type] ? `Budget de base · ${INCOME_TYPE_LABEL[i.type]}` : i.recurringId ? 'Budget de base · récurrent' : 'Budget de base',
+      subtitle: `Budget de base · ${i.status === 'prevu' ? 'Prévu' : i.status === 'annule' ? 'Annulé' : 'Reçu'}`,
+      label: 'Budget de base',
       icon: '💧',
       planned: i.status === 'prevu',
       cancelled: i.status === 'annule',
@@ -83,6 +88,7 @@ export function buildRows(data: AppData, range: DateRange, includePlanned = true
       sign: m.type === 'versement' ? '−' : m.type === 'retrait' ? '+' : '⇄',
       title: m.type === 'transfert' ? `${g?.name} → ${to?.name}` : `${m.type === 'versement' ? 'Versement' : 'Retrait'} · ${g?.name}`,
       subtitle: 'Transfert interne (épargne)',
+      label: 'Épargne',
       icon: g?.icon ?? '🧰',
       planned: false,
       cancelled: false,
@@ -100,13 +106,14 @@ export function buildRows(data: AppData, range: DateRange, includePlanned = true
         amount: p.rec.amount,
         sign: p.rec.kind === 'income' ? '+' : '−',
         title: p.rec.description,
-        subtitle: 'Échéance récurrente à confirmer',
+        subtitle: p.rec.kind === 'income' ? 'Budget de base · à confirmer' : `${c?.name ?? 'Récurrente'} · à confirmer`,
+        label: p.rec.kind === 'income' ? 'Budget de base' : c?.name ?? 'Récurrente',
         icon: p.rec.kind === 'income' ? '💧' : c?.icon ?? '🔁',
         planned: true,
         cancelled: false,
         categoryId: p.rec.categoryId,
         nature: p.rec.nature,
-        statusLabel: 'Prévu',
+        statusLabel: p.rec.kind === 'income' ? 'Prévu' : 'Prévue',
         open: { kind: 'occurrence', rec: p.rec, date: p.date },
         rec: p.rec
       });
@@ -115,30 +122,28 @@ export function buildRows(data: AppData, range: DateRange, includePlanned = true
   return rows;
 }
 
-export function OpRowView({ row, money, onOpen, showDate }: { row: OpRow; money: (c: number) => string; onOpen: (s: SheetSpec) => void; showDate?: boolean }) {
+/** Ligne d'opération (maquettes) : pastille d'icône, nom + étiquette « Prévue », sous-titre, montant. */
+export function OpRowView({ row, money, onOpen, showDate, dateLabel }: { row: OpRow; money: (c: number) => string; onOpen: (s: SheetSpec) => void; showDate?: boolean; dateLabel?: string }) {
   const tone = row.cancelled ? 'muted' : row.sign === '+' ? 'pos' : '';
+  const isIncome = row.kind === 'income' || (row.kind === 'occurrence' && row.sign === '+');
+  const iconId = isIncome ? '_income' : row.kind === 'occurrence' ? (hasCatIcon(row.categoryId) ? row.categoryId : '_recurring') : row.categoryId;
+  const sub = dateLabel ? `${dateLabel} · ${row.label}` : [showDate ? formatDateLong(row.date) : null, row.subtitle].filter(Boolean).join(' · ');
   return (
-    <button type="button" className={`list-row ${row.planned ? 'planned-row' : ''}`} onClick={() => onOpen(row.open)}>
-      <span className="icon-bubble" aria-hidden>
-        {row.icon}
-      </span>
+    <button type="button" className="list-row op-row" onClick={() => onOpen(row.open)}>
+      <CatIcon id={iconId} fallback={row.icon} size={42} />
       <div className="grow" style={{ minWidth: 0 }}>
-        <div className="ellipsis" style={{ textDecoration: row.cancelled ? 'line-through' : undefined }}>
-          {row.title}
+        <div className="op-title">
+          <span className="ellipsis" style={{ textDecoration: row.cancelled ? 'line-through' : undefined }}>
+            {row.title}
+          </span>
+          {(row.planned || row.cancelled) && <span className={`tag ${row.planned ? 'tag-gold' : ''}`}>{row.statusLabel}</span>}
         </div>
-        <div className="tiny ellipsis">
-          {showDate && `${formatDateLong(row.date)} · `}
-          {row.subtitle}
-        </div>
+        <div className="op-sub ellipsis">{sub}</div>
       </div>
-      <div className="stack" style={{ alignItems: 'flex-end', gap: 2 }}>
-        <span className={`num ${tone}`} style={{ fontWeight: 600 }}>
-          {row.sign === '⇄' ? '' : row.sign}
-          {money(row.amount)}
-        </span>
-        {(row.planned || row.cancelled) && <span className={`tag ${row.planned ? 'tag-planned' : ''}`}>{row.statusLabel}</span>}
-        {row.kind === 'movement' && <span className="tag">Épargne</span>}
-      </div>
+      <span className={`op-amount num ${tone}`}>
+        {row.sign === '⇄' ? '' : row.sign + ' '}
+        {money(row.amount)}
+      </span>
     </button>
   );
 }
