@@ -70,3 +70,6 @@ Routes : `#/accueil`, `#/monde`, `#/argent[/revenus|depenses|epargne|bilan|budge
 - Accueil = src/pages/Envelopes.tsx, onglet Historique = src/pages/EnvHistory.tsx, formulaires = src/forms/envForms.tsx, bouton + = dépense rapide.
 - Données : data.envelopes (months, tx, laserTarget). Soldes = initial + entrées − sorties ; transferts neutres ; aucun report automatique entre mois.
 - Ancienne version conservée : tag git `version-avant-enveloppes` (retour possible si l'utilisateur préfère).
+
+## Deux versions
+- CE dossier = version de la **copine** (enveloppes). La version perso de Corentin est dans le dossier voisin `money-quest-perso` (dépôt et adresse money-quest-perso). Ne jamais mélanger les deux.
