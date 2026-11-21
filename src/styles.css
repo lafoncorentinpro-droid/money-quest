@@ -885,3 +885,6 @@ body::before { content: ''; position: fixed; top: 0; left: 0; right: 0; height: 
 .set-foot strong { color: var(--text); }
 .amount-input:focus, .amount-input:focus-visible { outline: none; box-shadow: none !important; border: none !important; }
 .ops-selects .input { font-size: 15px; padding-right: 22px; }
+
+/* Accueil : en-tête un peu plus bas */
+.home-head { padding-top: 18px; }

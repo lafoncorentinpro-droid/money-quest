@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { addMonthsClamped, formatDateShort, isValidISO, parseISO, periodLabel, periodOf } from '../domain/dates';
 import { GOAL_TEMPLATES, INCOME_TYPE_LABEL } from '../domain/defaults';
 import { goalBalance, monthSummary, netExpense, refundedAmount } from '../domain/finance';
-import { FREQUENCY_LABEL } from '../domain/recurring';
 import type { Expense, ExpenseStatus, Frequency, Income, IncomeStatus, IncomeType, MovementType, Nature, RecurringTransaction, SavingsGoal } from '../domain/types';
 import { useStore } from '../store/store';
 import { CatIcon } from '../ui/CatIcon';
@@ -18,11 +17,10 @@ export function ExpenseForm({ existing, onClose, preset }: { existing?: Expense;
   const [categoryId, setCategoryId] = useState(init?.categoryId ?? '');
   const [date, setDate] = useState(init?.date ?? defaultDate);
   const [incomeId, setIncomeId] = useState(init?.incomeId ?? '');
-  const [description, setDescription] = useState(init?.description ?? '');
-  const [nature, setNature] = useState<Nature>(init?.nature ?? 'variable');
+  const [description] = useState(init?.description ?? '');
+  const [nature] = useState<Nature>(init?.nature ?? 'variable');
   const [status, setStatus] = useState<ExpenseStatus>(init?.status ?? (init?.date && init.date > today ? 'prevue' : 'realisee'));
-  const [note, setNote] = useState(init?.note ?? '');
-  const [showMore, setShowMore] = useState(!!existing);
+  const [note] = useState(init?.note ?? '');
   const [tried, setTried] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const refundAmt = useAmount();
@@ -103,9 +101,6 @@ export function ExpenseForm({ existing, onClose, preset }: { existing?: Expense;
             </div>
           </div>
         </div>
-        <Field label="Libellé (facultatif)">
-          <input className="input" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ex. Marché du samedi" maxLength={120} />
-        </Field>
         <Field label="Rattacher à une entrée du budget" hint="Pour suivre à quoi sert chaque entrée. Ne change aucun total.">
           <select className="input" value={linkValid ? incomeId : ''} onChange={(e) => setIncomeId(e.target.value)}>
             <option value="">Dépense générale du mois</option>
@@ -116,25 +111,6 @@ export function ExpenseForm({ existing, onClose, preset }: { existing?: Expense;
             ))}
           </select>
         </Field>
-        {!showMore ? (
-          <button type="button" className="more-link" onClick={() => setShowMore(true)}>
-            <Icon name="plus" size={20} strokeWidth={2.2} /> Type et note
-          </button>
-        ) : (
-          <>
-            <div className="segmented" role="group" aria-label="Type de dépense">
-              <button type="button" aria-pressed={nature === 'variable'} onClick={() => setNature('variable')}>
-                Variable
-              </button>
-              <button type="button" aria-pressed={nature === 'fixe'} onClick={() => setNature('fixe')}>
-                Fixe
-              </button>
-            </div>
-            <Field label="Note (facultatif)">
-              <textarea className="input" value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} />
-            </Field>
-          </>
-        )}
         {status === 'prevue' && <div className="notice notice-info small">Une dépense prévue n’est pas comptée dans les dépenses payées tant que tu ne la passes pas en « Payée ».</div>}
 
         <button type="submit" className="btn btn-primary btn-block btn-xl">
@@ -354,12 +330,13 @@ export function IncomeForm({ existing, onClose }: { existing?: Income; onClose: 
 
 export function RecurringForm({ existing, kind: kindProp, onClose }: { existing?: RecurringTransaction; kind?: 'income' | 'expense'; onClose: () => void }) {
   const { data, dispatch, today, toast } = useStore();
-  const [kind, setKind] = useState<'income' | 'expense'>(existing?.kind ?? kindProp ?? 'expense');
+  // Création : toujours une dépense mensuelle. Une récurrence existante garde son type et son rythme.
+  const kind: 'income' | 'expense' = existing?.kind ?? (kindProp === 'income' ? 'income' : 'expense');
   const amount = useAmount(existing?.amount);
   const [description, setDescription] = useState(existing?.description ?? '');
   const [categoryId, setCategoryId] = useState(existing?.categoryId ?? 'logement');
   const [incomeType, setIncomeType] = useState<IncomeType>(existing?.incomeType ?? 'salaire');
-  const [frequency, setFrequency] = useState<Frequency>(existing?.frequency ?? 'mensuel');
+  const frequency: Frequency = existing?.frequency ?? 'mensuel';
   const [startDate, setStartDate] = useState(existing?.startDate ?? today);
   const [endDate, setEndDate] = useState(existing?.endDate ?? '');
   const [active, setActive] = useState(existing?.active ?? true);
@@ -396,7 +373,7 @@ export function RecurringForm({ existing, kind: kindProp, onClose }: { existing?
   };
 
   return (
-    <Sheet title={existing ? 'Modifier' : 'Montant récurrent'} onClose={onClose}>
+    <Sheet title={existing ? 'Modifier' : 'Dépense récurrente'} subtitle={existing ? undefined : 'Loyer, abonnement, forfait… revient chaque mois.'} onClose={onClose}>
       <form
         className="stack"
         onSubmit={(e) => {
@@ -404,16 +381,6 @@ export function RecurringForm({ existing, kind: kindProp, onClose }: { existing?
           save();
         }}
       >
-        {!existing && (
-          <div className="segmented" role="group" aria-label="Type">
-            <button type="button" aria-pressed={kind === 'expense'} onClick={() => setKind('expense')}>
-              Dépense
-            </button>
-            <button type="button" aria-pressed={kind === 'income'} onClick={() => setKind('income')}>
-              Budget de base
-            </button>
-          </div>
-        )}
         <AmountField amount={amount} big autoFocus={!existing} />
         <Field label="Nom" error={tried && descErr ? 'Donne un nom, ex. Loyer' : undefined}>
           <input className="input" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={kind === 'income' ? 'Ex. Salaire' : 'Ex. Loyer, Netflix…'} maxLength={80} />
@@ -457,16 +424,6 @@ export function RecurringForm({ existing, kind: kindProp, onClose }: { existing?
             </select>
           </Field>
         )}
-        <div className="field">
-          <span>Fréquence</span>
-          <div className="chips chips-wrap" role="group" aria-label="Fréquence">
-            {Object.entries(FREQUENCY_LABEL).map(([k, v]) => (
-              <button key={k} type="button" className="chip" aria-pressed={frequency === k} onClick={() => setFrequency(k as Frequency)}>
-                {v}
-              </button>
-            ))}
-          </div>
-        </div>
         <div className="grid-2">
           <Field label="Première échéance">
             <input type="date" className="input" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
@@ -476,7 +433,7 @@ export function RecurringForm({ existing, kind: kindProp, onClose }: { existing?
           </Field>
         </div>
         <p className="tiny" style={{ margin: '-6px 0 0' }}>
-          Le jour choisi sert pour toutes les échéances suivantes.
+          Elle revient chaque mois à ce jour-là.
         </p>
         <Switch card label="Active" desc={active ? 'Les prochaines échéances seront prévues' : 'En pause : aucune échéance prévue'} checked={active} onChange={setActive} />
         <div className="notice-bell">

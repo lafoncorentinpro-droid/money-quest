@@ -1,9 +1,7 @@
 import { addDays, formatDateShort, periodLabel, periodRange } from '../domain/dates';
 import { monthProgress, monthSummary } from '../domain/finance';
 import { percent } from '../domain/money';
-import { periodStatus, scheduleLabel } from '../domain/recurring';
 import { useStore } from '../store/store';
-import { CatIcon } from '../ui/CatIcon';
 import { useCountUp } from '../ui/components';
 import { Icon } from '../ui/Icon';
 import { Mascot } from '../ui/Mascot';
@@ -28,7 +26,6 @@ export function Home() {
   const recent = [...done.slice(0, soon.length ? 3 : 4), ...soon.slice(0, 1)];
   const dayLabel = (d: string) => (d === today ? 'Aujourd’hui' : d === addDays(today, -1) ? 'Hier' : formatDateShort(d));
 
-  const recurring = data.recurring.filter((r) => r.kind === 'expense' && r.active).sort((a, b) => a.startDate.slice(8).localeCompare(b.startDate.slice(8)));
 
   return (
     <div className="page home">
@@ -62,8 +59,8 @@ export function Home() {
         </div>
         <div className="hero-tiles">
           <div>
-            <span>Budget de base</span>
-            <strong className="num">{money(s.incomesReceived)}</strong>
+            <span>Reste à dépenser</span>
+            <strong className="num">{money(s.available)}</strong>
           </div>
           <div>
             <span>Dépensé</span>
@@ -114,49 +111,6 @@ export function Home() {
         )}
       </section>
 
-      <section className="card" aria-labelledby="recdep">
-        <div className="card-head">
-          <h2 id="recdep">Dépenses récurrentes</h2>
-          <button type="button" className="link" onClick={() => open({ kind: 'recurring', recKind: 'expense' })}>
-            + Ajouter
-          </button>
-        </div>
-        {recurring.length === 0 ? (
-          <p className="small muted" style={{ margin: 0 }}>Aucune pour l’instant : loyer, abonnements, forfait…</p>
-        ) : (
-          <div className="list">
-            {recurring.map((r) => {
-              const st = periodStatus(data, r, range);
-              return (
-                <div key={r.id} className="list-row op-row">
-                  <button type="button" className="rec-main" onClick={() => open({ kind: 'recurring', id: r.id })}>
-                    <CatIcon id={r.categoryId} fallback={data.categories.find((c) => c.id === r.categoryId)?.icon} size={42} />
-                    <span className="grow" style={{ minWidth: 0 }}>
-                      <span className="op-title ellipsis">{r.description}</span>
-                      <span className="op-sub ellipsis">{scheduleLabel(r)}</span>
-                    </span>
-                  </button>
-                  <div className="rec-side">
-                    <span className="op-amount num">{money(r.amount)}</span>
-                    {st.confirmed ? (
-                      <span className="paid-chip">
-                        <Icon name="check" size={14} strokeWidth={2.4} /> Payé
-                      </span>
-                    ) : st.date ? (
-                      <button type="button" className="pay-btn" onClick={() => open({ kind: 'occurrence', rec: r, date: st.date! })}>
-                        Payé ?
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-        <p className="tiny" style={{ margin: '12px 0 0' }}>
-          Rien n’est compté tout seul : tu confirmes chaque échéance avec « Payé ? ».
-        </p>
-      </section>
     </div>
   );
 }

@@ -43,7 +43,7 @@ function SheetRenderer({ spec, close, open }: { spec: SheetSpec; close: () => vo
               [
                 ['expense', 'card', 'is-blue', 'Une dépense', 'Courses, resto, transport… payée ou prévue'],
                 ['income', 'arrow-down-circle', 'is-green', 'Budget de base', 'Salaire, prime, aide… l’argent du mois'],
-                ['recurring', 'repeat', 'is-gold', 'Un montant récurrent', 'Loyer, abonnement, forfait… chaque mois']
+                ['recurring', 'repeat', 'is-gold', 'Une dépense récurrente', 'Loyer, abonnement, forfait… chaque mois']
               ] as const
             ).map(([kind, icon, tone, title, desc]) => (
               <button key={kind} type="button" className="btn add-option" onClick={() => open({ kind } as SheetSpec)}>
