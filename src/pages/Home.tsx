@@ -61,7 +61,7 @@ function foxMessage(s: MonthSummary, hasData: boolean, nickname: string): { mood
 
 function foxMessageRaw(s: MonthSummary, hasData: boolean, nickname: string): { mood: FoxMood; text: string } {
   const hi = nickname ? `${nickname}, ` : '';
-  if (!hasData) return { mood: 'accueil', text: `Bienvenue au QG ! ${hi}on prépare ensemble ton premier mois ? Commence par ton revenu principal.` };
+  if (!hasData) return { mood: 'accueil', text: `Bienvenue au QG${nickname ? `, ${nickname}` : ''} ! On prépare ensemble ton premier mois ? Commence par ton revenu principal.` };
   const over = s.categories.filter((c) => c.state === 'depasse').length;
   if (over > 0) return { mood: 'encourageant', text: `${hi}une catégorie a dépassé sa limite. Ça arrive : regarde ton budget, on ajuste sans stress.` };
   if (s.hasBudget && s.budgetTotal > 0 && s.budgetSpent <= s.budgetTotal) return { mood: 'heureux', text: `${hi}ton budget tient la route. Continue de noter tes dépenses au fil de l’eau !` };
