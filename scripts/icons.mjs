@@ -1,18 +1,23 @@
-// Génère les icônes PNG de la PWA à partir de public/icon.svg : `npm run icons`
+// Génère toutes les icônes à partir de public/icon-source.svg : `npm run icons`
 import sharp from 'sharp';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
-const svg = readFileSync(new URL('../public/icon.svg', import.meta.url));
-const out = (name) => new URL(`../public/${name}`, import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
+const p = (name) => fileURLToPath(new URL(`../public/${name}`, import.meta.url));
+const source = readFileSync(p('icon-source.svg'), 'utf8');
 
-await sharp(svg).resize(192, 192).png().toFile(out('icon-192.png'));
-await sharp(svg).resize(512, 512).png().toFile(out('icon-512.png'));
-// iOS n'arrondit pas lui-même la transparence : fond plein, sans coins
-const flat = Buffer.from(svg.toString().replace('rx="112"', 'rx="0"'));
-await sharp(flat).resize(180, 180).png().toFile(out('apple-touch-icon.png'));
-// Icône « maskable » (Android) : marge de sécurité
-await sharp({ create: { width: 512, height: 512, channels: 4, background: '#DCEBF5' } })
-  .composite([{ input: await sharp(flat).resize(400, 400).png().toBuffer(), top: 56, left: 56 }])
+// Favicon / onglet : version aux coins arrondis
+writeFileSync(p('icon.svg'), source.replace('rx="0"', 'rx="230"'));
+
+// iPhone (écran d'accueil) : carré plein, iOS arrondit lui-même les coins
+await sharp(Buffer.from(source)).resize(180, 180).png().toFile(p('apple-touch-icon.png'));
+// Manifeste PWA
+await sharp(Buffer.from(source)).resize(192, 192).png().toFile(p('icon-192.png'));
+await sharp(Buffer.from(source)).resize(512, 512).png().toFile(p('icon-512.png'));
+// Android « maskable » : le dessin garde une marge de sécurité
+await sharp({ create: { width: 512, height: 512, channels: 4, background: '#A9CDE9' } })
+  .composite([{ input: await sharp(Buffer.from(source)).resize(420, 420).png().toBuffer(), top: 46, left: 46 }])
   .png()
-  .toFile(out('icon-512-maskable.png'));
+  .toFile(p('icon-512-maskable.png'));
+
 console.log('Icônes générées dans public/');

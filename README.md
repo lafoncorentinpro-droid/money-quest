@@ -85,12 +85,12 @@ tests/         ← 40 tests (calculs, cas particuliers, parcours complets)
 
 ## Remplacer les visuels par tes illustrations
 
-La mascotte (`src/ui/Fox.tsx`), la carte (`src/pages/World.tsx`) et l'icône (`public/icon.svg`) sont dessinées en SVG pour que l'app fonctionne tout de suite.
+La mascotte (`src/ui/Fox.tsx`), la carte (`src/pages/World.tsx`) sont dessinées en SVG pour que l'app fonctionne tout de suite.
 Quand tu auras créé tes images avec `PROMPTS_VISUELS_MONEY_QUEST.md` :
 
 1. Place-les dans `public/assets/` (PNG transparent ou SVG, sans texte).
 2. Remplace le contenu SVG par `<img src="./assets/renard-accueil.png" alt="Le renard aventurier" />` (ou la carte par `<image href="./assets/carte.png" …/>` dans le SVG pour garder les zones cliquables).
-3. Pour l'icône : remplace `public/icon.svg` puis lance `npm run icons`.
+3. Pour l’icône : modifie `public/icon-source.svg` (logo 3D) puis lance `npm run icons`, qui fabrique toutes les tailles.
 
 ## Pas encore inclus (versions futures)
 - Synchronisation entre appareils (nécessiterait un serveur).
