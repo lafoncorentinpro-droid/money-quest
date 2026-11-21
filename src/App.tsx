@@ -130,8 +130,8 @@ function Shell() {
   const dir = useDirection(tab, sub);
 
   useEffect(() => {
-    document.documentElement.dataset.theme = data.settings.theme === 'auto' ? '' : data.settings.theme;
-    if (data.settings.theme === 'auto') delete document.documentElement.dataset.theme;
+    // Thème clair pour tout le monde (le choix du thème est retiré des réglages)
+    document.documentElement.dataset.theme = 'clair';
     document.body.classList.toggle('no-anim', !data.settings.animations);
   }, [data.settings.theme, data.settings.animations]);
 

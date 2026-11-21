@@ -1,7 +1,7 @@
 import { periodOf } from '../domain/dates';
 import { initialData } from '../domain/defaults';
 import { goalBalance } from '../domain/finance';
-import { balance, envelopeExists, LASER } from '../domain/envelopes';
+import { balance, envelopeExists, isProject } from '../domain/envelopes';
 import { award, refreshProgress, uid } from '../domain/game';
 import type {
   AppData,
@@ -63,7 +63,8 @@ export type Action =
   | { type: 'env/month/save'; month: Omit<EnvelopeMonth, 'createdAt' | 'updatedAt'> }
   | { type: 'env/tx/add'; tx: Omit<EnvelopeTx, 'id' | 'createdAt'> }
   | { type: 'env/tx/delete'; id: ID }
-  | { type: 'env/laser/target'; amount: number }
+  | { type: 'env/project/save'; key?: string; name: string; target: number }
+  | { type: 'env/project/delete'; key: string }
   | { type: 'data/replace'; data: AppData }
   | { type: 'data/reset' };
 
@@ -285,16 +286,25 @@ function base(data: AppData, a: Stamped, now: string): AppData {
       if (!t.from && !t.to) throw new ActionError('Choisis une enveloppe.');
       for (const k of [t.from, t.to]) if (k && !envelopeExists(data.envelopes, k)) throw new ActionError('Enveloppe introuvable : crée d’abord le mois.');
       if (t.kind === 'transfert' && (!t.from || !t.to || t.from === t.to)) throw new ActionError('Choisis deux enveloppes différentes.');
-      if (t.kind === 'seance' && t.from !== LASER) throw new ActionError('La séance se règle depuis l’enveloppe laser.');
-      if (t.kind === 'seance' && t.amount > balance(data.envelopes, LASER)) throw new ActionError('Montant supérieur à l’enveloppe laser.');
+      if (t.kind === 'seance' && (!t.from || !isProject(data.envelopes, t.from))) throw new ActionError('Seul un projet peut être réglé.');
+      if (t.kind === 'seance' && t.amount > balance(data.envelopes, t.from!)) throw new ActionError('Montant supérieur à ce qui est mis de côté.');
       const tx: EnvelopeTx = { ...t, note: t.note?.trim() || undefined, id: uid(), createdAt: now };
       return { ...data, envelopes: { ...data.envelopes, tx: [...data.envelopes.tx, tx] } };
     }
     case 'env/tx/delete':
       return { ...data, envelopes: { ...data.envelopes, tx: data.envelopes.tx.filter((t) => t.id !== a.id) } };
-    case 'env/laser/target':
-      if (!Number.isInteger(a.amount) || a.amount <= 0) throw new ActionError('L’objectif doit être supérieur à zéro.');
-      return { ...data, envelopes: { ...data.envelopes, laserTarget: a.amount } };
+    case 'env/project/save': {
+      const name = a.name.trim();
+      if (!name) throw new ActionError('Donne un nom au projet.');
+      if (!Number.isInteger(a.target) || a.target <= 0) throw new ActionError('L’objectif doit être supérieur à zéro.');
+      const projects = a.key
+        ? data.envelopes.projects.map((p) => (p.key === a.key ? { ...p, name, target: a.target } : p))
+        : [...data.envelopes.projects, { key: `projet-${uid()}`, name, target: a.target }];
+      return { ...data, envelopes: { ...data.envelopes, projects } };
+    }
+    case 'env/project/delete':
+      if (balance(data.envelopes, a.key) !== 0) throw new ActionError('Vide d’abord ce projet (transfère son argent) avant de le supprimer.');
+      return { ...data, envelopes: { ...data.envelopes, projects: data.envelopes.projects.filter((p) => p.key !== a.key) } };
     case 'data/replace':
       return a.data;
     case 'data/reset':

@@ -1,7 +1,7 @@
 import { DEFAULT_ACTIVE_MISSIONS, DEFAULT_XP_RULES } from './game';
 import type { AppData, Category, IncomeType } from './types';
 
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 export const DEFAULT_CATEGORIES: Category[] = [
   ['logement', 'Logement', '🏠'],
@@ -70,7 +70,7 @@ export function initialData(nowIso = new Date().toISOString()): AppData {
       activeMissions: [...DEFAULT_ACTIVE_MISSIONS],
       onboardingDone: false
     },
-    envelopes: { months: {}, tx: [], laserTarget: 13700 },
+    envelopes: { months: {}, tx: [], projects: [{ key: 'laser', name: 'Prochaine séance laser', target: 13700 }] },
     createdAt: nowIso
   };
 }

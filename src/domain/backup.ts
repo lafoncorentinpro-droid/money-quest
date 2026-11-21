@@ -47,7 +47,14 @@ const MIGRATIONS: Record<number, (d: Record<string, unknown>) => Record<string, 
   // 2 -> 3 : ajout du compagnon (absent = choix au prochain lancement), rien à convertir
   2: (d) => d,
   // 3 -> 4 : méthode des enveloppes (vide au départ)
-  3: (d) => ({ ...d, envelopes: (d.envelopes as object) ?? { months: {}, tx: [], laserTarget: 13700 } })
+  3: (d) => ({ ...d, envelopes: (d.envelopes as object) ?? { months: {}, tx: [], laserTarget: 13700 } }),
+  // 4 -> 5 : le laser devient un projet parmi d'autres (on peut en ajouter)
+  4: (d) => {
+    const env = { ...((d.envelopes ?? {}) as Record<string, unknown>) };
+    if (!Array.isArray(env.projects)) env.projects = [{ key: 'laser', name: 'Prochaine séance laser', target: typeof env.laserTarget === 'number' ? env.laserTarget : 13700 }];
+    delete env.laserTarget;
+    return { ...d, envelopes: { months: {}, tx: [], ...env } };
+  }
 };
 
 export function migrate(raw: Record<string, unknown>): Record<string, unknown> {

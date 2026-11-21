@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
 import { CategoryForm, ConfirmOccurrenceForm, ExpenseForm, GoalForm, IncomeForm, MovementForm, RecurringForm } from '../forms/forms';
 import type { EnvelopeKey, Expense, MovementType, PeriodKey, RecurringTransaction } from '../domain/types';
-import { EnvForm, EnvMonthForm, EnvQuickForm, EnvTransferForm } from '../forms/envForms';
+import { EnvForm, EnvMonthForm, EnvProjectForm, EnvQuickForm, EnvTransferForm } from '../forms/envForms';
 import { useStore } from '../store/store';
 import { Sheet } from './components';
 import { Icon } from './Icon';
@@ -21,7 +21,8 @@ export type SheetSpec =
   | { kind: 'env-month'; period: PeriodKey }
   | { kind: 'env'; key: EnvelopeKey }
   | { kind: 'env-transfer'; from?: EnvelopeKey }
-  | { kind: 'env-quick' };
+  | { kind: 'env-quick' }
+  | { kind: 'env-project'; key?: EnvelopeKey };
 
 const Ctx = createContext<(s: SheetSpec) => void>(() => undefined);
 export const useSheets = () => useContext(Ctx);
@@ -43,7 +44,9 @@ function SheetRenderer({ spec, close, open }: { spec: SheetSpec; close: () => vo
     case 'env-month':
       return <EnvMonthForm period={spec.period} onClose={close} />;
     case 'env':
-      return <EnvForm envKey={spec.key} onClose={close} onTransfer={() => open({ kind: 'env-transfer', from: spec.key })} />;
+      return <EnvForm envKey={spec.key} onClose={close} onTransfer={() => open({ kind: 'env-transfer', from: spec.key })} onEditProject={() => open({ kind: 'env-project', key: spec.key })} />;
+    case 'env-project':
+      return <EnvProjectForm projectKey={spec.key} onClose={close} />;
     case 'env-transfer':
       return <EnvTransferForm from={spec.from} onClose={close} />;
     case 'env-quick':

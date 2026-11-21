@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { initialData } from '../src/domain/defaults';
-import { balance, diversKey, EPARGNE, fixedTotal, LASER, laserView, monthView, nextMonthDefaults, weekKey, weekOfDate } from '../src/domain/envelopes';
+import { balance, diversKey, EPARGNE, fixedTotal, LASER, monthView, projectView, projectsView, nextMonthDefaults, weekKey, weekOfDate } from '../src/domain/envelopes';
 import { migrate } from '../src/domain/backup';
 import { reduce, type Action } from '../src/store/reducer';
 import type { AppData } from '../src/domain/types';
@@ -31,7 +31,7 @@ describe('méthode des enveloppes', () => {
     const before = monthView(d.envelopes, P)!.available + balance(d.envelopes, LASER);
     d = run(d, { type: 'env/tx/add', tx: { date: T, kind: 'transfert', from: weekKey(P, 1), to: LASER, amount: 1500 } });
     expect(balance(d.envelopes, weekKey(P, 1))).toBe(9500);
-    expect(laserView(d.envelopes)).toEqual({ balance: 1500, target: 13700, remaining: 12200, pct: 11 });
+    expect(projectView(d.envelopes, LASER)).toEqual({ key: 'laser', name: 'Prochaine séance laser', balance: 1500, target: 13700, remaining: 12200, pct: 11 });
     expect(monthView(d.envelopes, P)!.available + balance(d.envelopes, LASER)).toBe(before);
   });
 
@@ -62,10 +62,25 @@ describe('méthode des enveloppes', () => {
     expect(['2026-11-01', '2026-11-07', '2026-11-08', '2026-11-21', '2026-11-22', '2026-11-30'].map(weekOfDate)).toEqual([1, 1, 2, 3, 4, 4]);
   });
 
-  it('migration v4 : ajoute des enveloppes vides', () => {
-    const m = migrate({ schemaVersion: 3, settings: {} }) as { schemaVersion: number; envelopes: { tx: unknown[]; laserTarget: number } };
-    expect(m.schemaVersion).toBe(4);
+  it('migrations v4 et v5 : enveloppes vides puis le laser devient un projet', () => {
+    const m = migrate({ schemaVersion: 3, settings: {} }) as { schemaVersion: number; envelopes: { tx: unknown[]; projects: unknown[]; laserTarget?: number } };
+    expect(m.schemaVersion).toBe(5);
     expect(m.envelopes.tx).toEqual([]);
-    expect(m.envelopes.laserTarget).toBe(13700);
+    expect(m.envelopes.projects).toEqual([{ key: 'laser', name: 'Prochaine séance laser', target: 13700 }]);
+    expect(m.envelopes.laserTarget).toBeUndefined();
+    const kept = migrate({ schemaVersion: 4, envelopes: { months: {}, tx: [], laserTarget: 15000 } }) as { envelopes: { projects: { target: number }[] } };
+    expect(kept.envelopes.projects[0].target).toBe(15000);
+  });
+
+  it('on peut ajouter un projet (gros achat), l’alimenter, le régler et le supprimer une fois vide', () => {
+    let d = run(create(initialData()), { type: 'env/project/save', name: 'Nouveau vélo', target: 60000 });
+    const key = d.envelopes.projects[1].key;
+    expect(projectsView(d.envelopes).map((p) => p.name)).toEqual(['Prochaine séance laser', 'Nouveau vélo']);
+    d = run(d, { type: 'env/tx/add', tx: { date: T, kind: 'transfert', from: diversKey(P), to: key, amount: 10000 } });
+    expect(projectView(d.envelopes, key).pct).toBe(17);
+    expect(() => run(d, { type: 'env/project/delete', key })).toThrow();
+    d = run(d, { type: 'env/tx/add', tx: { date: T, kind: 'seance', from: key, amount: 10000 } });
+    d = run(d, { type: 'env/project/delete', key });
+    expect(d.envelopes.projects).toHaveLength(1);
   });
 });

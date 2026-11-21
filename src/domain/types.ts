@@ -281,8 +281,15 @@ export interface EnvelopeTx {
   createdAt: string;
 }
 
+/** Projet d'épargne alimenté à la main (ex. prochaine séance laser, gros achat). */
+export interface EnvProject {
+  key: EnvelopeKey;
+  name: string;
+  target: Cents;
+}
+
 export interface EnvelopeData {
   months: Record<PeriodKey, EnvelopeMonth>;
   tx: EnvelopeTx[];
-  laserTarget: Cents;
+  projects: EnvProject[];
 }

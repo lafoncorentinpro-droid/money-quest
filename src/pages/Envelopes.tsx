@@ -1,5 +1,5 @@
 import { periodLabel } from '../domain/dates';
-import { balance, EPARGNE, LASER, laserView, monthView, weekOfDate } from '../domain/envelopes';
+import { balance, EPARGNE, monthView, projectsView, weekOfDate } from '../domain/envelopes';
 import { useStore } from '../store/store';
 import { PeriodSwitcher, useCountUp } from '../ui/components';
 import { Icon } from '../ui/Icon';
@@ -14,7 +14,7 @@ export function EnvelopesHome() {
   const env = data.envelopes;
   const v = monthView(env, month);
   const shown = useCountUp(v ? v.available : 0);
-  const laser = laserView(env);
+  const projects = projectsView(env);
   const thisWeek = month === current ? weekOfDate(today) : 0;
   const label = periodLabel(month, 1);
 
@@ -115,21 +115,42 @@ export function EnvelopesHome() {
             <span className={`env-amount num ${v.divers.balance < 0 ? 'neg' : ''}`}>{money(v.divers.balance)}</span>
           </button>
 
-          <button type="button" className="card env-card env-laser" onClick={() => open({ kind: 'env', key: LASER })}>
-            <span className="env-ico is-gold">
-              <Icon name="star" size={22} />
-            </span>
-            <span className="grow">
-              <strong>Prochaine séance laser</strong>
-              <small>
-                {money(laser.balance)} / {money(laser.target)} · encore {money(laser.remaining)}
-              </small>
-              <span className="week-bar is-gold">
-                <span style={{ width: `${laser.pct}%` }} />
+          <div className="row-between" style={{ marginTop: 4 }}>
+            <h2 className="section-title" style={{ margin: 0 }}>
+              Mes projets
+            </h2>
+            <button type="button" className="link" onClick={() => open({ kind: 'env-project' })}>
+              + Nouveau projet
+            </button>
+          </div>
+          {projects.map((p) => (
+            <button key={p.key} type="button" className="card env-card env-laser" onClick={() => open({ kind: 'env', key: p.key })}>
+              <span className="env-ico is-gold">
+                <Icon name="star" size={22} />
               </span>
-            </span>
-            <span className="env-amount num">{laser.pct} %</span>
-          </button>
+              <span className="grow">
+                <strong className="ellipsis">{p.name}</strong>
+                <small>
+                  {money(p.balance)} / {money(p.target)} · encore {money(p.remaining)}
+                </small>
+                <span className="week-bar is-gold">
+                  <span style={{ width: `${p.pct}%` }} />
+                </span>
+              </span>
+              <span className="env-amount num">{p.pct} %</span>
+            </button>
+          ))}
+          {projects.length === 0 && (
+            <button type="button" className="card env-card" onClick={() => open({ kind: 'env-project' })}>
+              <span className="env-ico is-gold">
+                <Icon name="plus" size={22} />
+              </span>
+              <span className="grow">
+                <strong>Créer un projet</strong>
+                <small>Un gros achat à financer petit à petit</small>
+              </span>
+            </button>
+          )}
 
           <button type="button" className="card env-card" onClick={() => open({ kind: 'env', key: EPARGNE })}>
             <span className="env-ico is-green">

@@ -61,7 +61,7 @@ function parseKey(key: EnvelopeKey): { period?: PeriodKey; slot: string } {
 /** L'enveloppe existe-t-elle (mois créé pour les enveloppes mensuelles) ? */
 export function envelopeExists(env: AppData['envelopes'], key: EnvelopeKey): boolean {
   const { period, slot } = parseKey(key);
-  if (!period) return slot === LASER || slot === EPARGNE;
+  if (!period) return slot === EPARGNE || isProject(env, key);
   if (!env.months[period]) return false;
   return slot === 'divers' || /^w[1-4]$/.test(slot);
 }
@@ -91,9 +91,9 @@ export function spent(env: AppData['envelopes'], key: EnvelopeKey): Cents {
   return sum(env.tx.filter((t) => t.from === key && (t.kind === 'depense' || t.kind === 'seance')).map((t) => t.amount));
 }
 
-export function envelopeLabel(key: EnvelopeKey): string {
+export function envelopeLabel(key: EnvelopeKey, env?: AppData['envelopes']): string {
   const { period, slot } = parseKey(key);
-  if (!period) return slot === LASER ? 'Prochaine séance laser' : 'Épargne';
+  if (!period) return slot === EPARGNE ? 'Épargne' : env?.projects.find((p) => p.key === key)?.name ?? 'Projet supprimé';
   if (slot === 'divers') return 'Achats divers';
   return `Semaine ${slot.slice(1)}`;
 }
@@ -104,7 +104,7 @@ export interface MonthView {
   plan: MonthPlan;
   weeks: { key: EnvelopeKey; n: number; initial: Cents; balance: number }[];
   divers: { key: EnvelopeKey; initial: number; balance: number };
-  /** Disponible du mois = semaines + achats divers (hors épargne et laser). */
+  /** Disponible du mois = semaines + achats divers (hors épargne et projets). */
   available: number;
 }
 
@@ -121,10 +121,29 @@ export function monthView(env: AppData['envelopes'], period: PeriodKey): MonthVi
   return { period, month, plan, weeks, divers, available: sum(weeks.map((w) => w.balance)) + divers.balance };
 }
 
-export function laserView(env: AppData['envelopes']): { balance: number; target: Cents; remaining: Cents; pct: number } {
-  const b = balance(env, LASER);
-  const target = env.laserTarget;
-  return { balance: b, target, remaining: Math.max(0, target - b), pct: target > 0 ? Math.max(0, Math.min(100, Math.round((b / target) * 100))) : 0 };
+export function isProject(env: AppData['envelopes'], key: EnvelopeKey): boolean {
+  return env.projects.some((p) => p.key === key);
+}
+
+export interface ProjectView {
+  key: EnvelopeKey;
+  name: string;
+  balance: number;
+  target: Cents;
+  remaining: Cents;
+  pct: number;
+}
+
+/** Projet d'épargne : montant mis de côté, objectif, reste à économiser, progression (0–100). */
+export function projectView(env: AppData['envelopes'], key: EnvelopeKey): ProjectView {
+  const p = env.projects.find((x) => x.key === key);
+  const b = balance(env, key);
+  const target = p?.target ?? 0;
+  return { key, name: p?.name ?? 'Projet', balance: b, target, remaining: Math.max(0, target - b), pct: target > 0 ? Math.max(0, Math.min(100, Math.round((b / target) * 100))) : 0 };
+}
+
+export function projectsView(env: AppData['envelopes']): ProjectView[] {
+  return env.projects.map((p) => projectView(env, p.key));
 }
 
 /** Paramètres proposés pour créer un mois : ceux du dernier mois existant, sinon les réglages de départ. */
@@ -151,6 +170,6 @@ export function envelopeChoices(env: AppData['envelopes'], period: PeriodKey): E
     for (let i = 1; i <= WEEKS; i++) list.push(weekKey(prev, i));
     list.push(diversKey(prev));
   }
-  list.push(LASER, EPARGNE);
+  list.push(...env.projects.map((p) => p.key), EPARGNE);
   return list;
 }

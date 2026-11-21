@@ -7,8 +7,8 @@ import {
   envelopeLabel,
   EPARGNE,
   fixedTotal,
-  LASER,
-  laserView,
+  isProject,
+  projectView,
   monthPlan,
   nextMonthDefaults,
   weekKey,
@@ -25,10 +25,10 @@ const monthShort = (p: string) => periodLabel(p as PeriodKey, 1).split(' ')[0].s
 
 /** Libellé d'enveloppe, avec le mois si ce n'est pas le mois affiché. */
 export function useEnvName() {
-  const { month } = useStore();
+  const { month, data } = useStore();
   return (key: EnvelopeKey) => {
     const p = key.includes(':') ? key.split(':')[0] : null;
-    return p && p !== month ? `${envelopeLabel(key)} (${monthShort(p)})` : envelopeLabel(key);
+    return p && p !== month ? `${envelopeLabel(key, data.envelopes)} (${monthShort(p)})` : envelopeLabel(key, data.envelopes);
   };
 }
 
@@ -136,18 +136,17 @@ export function EnvMonthForm({ period, onClose }: { period: PeriodKey; onClose: 
 
 type Mode = 'depense' | 'ajout' | 'correction';
 
-export function EnvForm({ envKey, onClose, onTransfer }: { envKey: EnvelopeKey; onClose: () => void; onTransfer: () => void }) {
+export function EnvForm({ envKey, onClose, onTransfer, onEditProject }: { envKey: EnvelopeKey; onClose: () => void; onTransfer: () => void; onEditProject: () => void }) {
   const { data, dispatch, toast, money, today } = useStore();
   const name = useEnvName();
   const env = data.envelopes;
   const bal = balance(env, envKey);
-  const isLaser = envKey === LASER;
-  const [mode, setMode] = useState<Mode>(envKey === EPARGNE || isLaser ? 'ajout' : 'depense');
+  const isProj = isProject(env, envKey);
+  const [mode, setMode] = useState<Mode>(envKey === EPARGNE || isProj ? 'ajout' : 'depense');
   const amount = useAmount();
   const [note, setNote] = useState('');
-  const [editTarget, setEditTarget] = useState(false);
-  const target = useAmount(env.laserTarget);
-  const lv = laserView(env);
+  const lv = projectView(env, envKey);
+  const paidLabel = envKey === 'laser' ? 'Séance payée' : 'Achat payé';
   const history = env.tx
     .filter((t) => t.from === envKey || t.to === envKey)
     .slice(-8)
@@ -174,9 +173,9 @@ export function EnvForm({ envKey, onClose, onTransfer }: { envKey: EnvelopeKey; 
   return (
     <Sheet title={name(envKey)} onClose={onClose}>
       <div className="env-balance">
-        <span>{isLaser ? 'Mis de côté' : 'Il reste'}</span>
+        <span>{isProj ? 'Mis de côté' : 'Il reste'}</span>
         <strong className={`num ${bal < 0 ? 'neg' : ''}`}>{money(bal)}</strong>
-        {isLaser && (
+        {isProj && (
           <>
             <div className="meter-bar is-budget" style={{ marginTop: 10 }}>
               <span style={{ width: `${lv.pct}%` }} />
@@ -223,41 +222,27 @@ export function EnvForm({ envKey, onClose, onTransfer }: { envKey: EnvelopeKey; 
         <button type="button" className="btn btn-soft" onClick={onTransfer}>
           <Icon name="repeat" size={18} /> Transférer
         </button>
-        {isLaser && bal > 0 && (
+        {isProj && bal > 0 && (
           <button
             type="button"
             className="btn"
             onClick={() => {
-              if (dispatch({ type: 'env/tx/add', tx: { date: today, kind: 'seance', from: LASER, amount: bal, note: 'Séance payée' } })) {
-                toast('Séance payée : enveloppe remise à zéro', 'success');
+              if (dispatch({ type: 'env/tx/add', tx: { date: today, kind: 'seance', from: envKey, amount: bal, note: paidLabel } })) {
+                toast(`${paidLabel} : enveloppe remise à zéro`, 'success');
                 onClose();
               }
             }}
           >
-            <Icon name="check" size={18} /> Séance payée
+            <Icon name="check" size={18} /> {paidLabel}
           </button>
         )}
       </div>
 
-      {isLaser &&
-        (editTarget ? (
-          <div className="row" style={{ marginTop: 12, alignItems: 'flex-end' }}>
-            <AmountField label="Objectif laser" amount={target} />
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => {
-                if (target.cents && dispatch({ type: 'env/laser/target', amount: target.cents })) setEditTarget(false);
-              }}
-            >
-              OK
-            </button>
-          </div>
-        ) : (
-          <button type="button" className="link" style={{ marginTop: 10 }} onClick={() => setEditTarget(true)}>
-            Modifier l’objectif ({money(env.laserTarget)})
-          </button>
-        ))}
+      {isProj && (
+        <button type="button" className="link" style={{ marginTop: 10 }} onClick={onEditProject}>
+          Modifier le projet (nom, objectif {money(lv.target)})
+        </button>
+      )}
 
       {history.length > 0 && (
         <div className="env-history">
@@ -268,7 +253,7 @@ export function EnvForm({ envKey, onClose, onTransfer }: { envKey: EnvelopeKey; 
             return (
               <div key={t.id} className="row-between env-hist-row">
                 <span className="ellipsis">
-                  <span className="muted">{formatDateShort(t.date)}</span> · {t.kind === 'transfert' ? (out ? `Vers ${name(other!)}` : `De ${name(other!)}`) : t.note || (t.kind === 'depense' ? 'Dépense' : t.kind === 'ajout' ? 'Ajout' : t.kind === 'seance' ? 'Séance payée' : 'Correction')}
+                  <span className="muted">{formatDateShort(t.date)}</span> · {t.kind === 'transfert' ? (out ? `Vers ${name(other!)}` : `De ${name(other!)}`) : t.note || (t.kind === 'depense' ? 'Dépense' : t.kind === 'ajout' ? 'Ajout' : t.kind === 'seance' ? 'Payé' : 'Correction')}
                 </span>
                 <span className={`num ${out ? '' : 'pos'}`}>
                   {out ? '−' : '+'}
@@ -291,7 +276,7 @@ export function EnvTransferForm({ from: fromProp, onClose }: { from?: EnvelopeKe
   const env = data.envelopes;
   const choices = envelopeChoices(env, month);
   const [from, setFrom] = useState<EnvelopeKey>(fromProp ?? choices[0]);
-  const [to, setTo] = useState<EnvelopeKey>(choices.find((c) => c !== (fromProp ?? choices[0]) && c === LASER) ?? choices.find((c) => c !== (fromProp ?? choices[0]))!);
+  const [to, setTo] = useState<EnvelopeKey>(choices.find((c) => c !== (fromProp ?? choices[0]) && isProject(env, c)) ?? choices.find((c) => c !== (fromProp ?? choices[0]))!);
   const fromBal = balance(env, from);
   const amount = useAmount(fromBal > 0 ? fromBal : undefined);
 
@@ -351,7 +336,7 @@ export function EnvQuickForm({ onClose, onCreate }: { onClose: () => void; onCre
   const env = data.envelopes;
   const exists = !!env.months[month];
   const thisWeek = month === period ? weekOfDate(today) : 1;
-  const keys: EnvelopeKey[] = [...Array.from({ length: WEEKS }, (_, i) => weekKey(month, i + 1)), diversKey(month), LASER];
+  const keys: EnvelopeKey[] = [...Array.from({ length: WEEKS }, (_, i) => weekKey(month, i + 1)), diversKey(month), ...env.projects.map((p) => p.key)];
   const [key, setKey] = useState<EnvelopeKey>(weekKey(month, thisWeek));
   const amount = useAmount();
   const [note, setNote] = useState('');
@@ -389,7 +374,7 @@ export function EnvQuickForm({ onClose, onCreate }: { onClose: () => void; onCre
         <div className="env-pick" role="group" aria-label="Enveloppe">
           {keys.map((k) => (
             <button key={k} type="button" className="env-chip" aria-pressed={key === k} onClick={() => setKey(k)}>
-              <span>{name(k).replace('Prochaine séance laser', 'Laser')}</span>
+              <span className="ellipsis">{name(k).replace('Prochaine séance laser', 'Laser')}</span>
               <strong className="num">{money(balance(env, k))}</strong>
             </button>
           ))}
@@ -400,6 +385,62 @@ export function EnvQuickForm({ onClose, onCreate }: { onClose: () => void; onCre
         <button type="submit" className="btn btn-primary btn-block btn-xl">
           <Icon name="check" size={20} strokeWidth={2.4} /> Déduire
         </button>
+      </form>
+    </Sheet>
+  );
+}
+
+/* ======================= Projet (laser, gros achat…) ======================= */
+
+export function EnvProjectForm({ projectKey, onClose }: { projectKey?: EnvelopeKey; onClose: () => void }) {
+  const { data, dispatch, toast, money } = useStore();
+  const existing = data.envelopes.projects.find((p) => p.key === projectKey);
+  const [name, setName] = useState(existing?.name ?? '');
+  const target = useAmount(existing?.target);
+  const bal = existing ? balance(data.envelopes, existing.key) : 0;
+
+  const save = () => {
+    target.setTouched(true);
+    if (!name.trim()) return toast('Donne un nom au projet.', 'error');
+    if (!target.valid) return;
+    if (dispatch({ type: 'env/project/save', key: existing?.key, name, target: target.cents! })) {
+      toast(existing ? 'Projet modifié' : 'Projet créé', 'success');
+      onClose();
+    }
+  };
+
+  return (
+    <Sheet title={existing ? 'Modifier le projet' : 'Nouveau projet'} subtitle={existing ? undefined : 'Une enveloppe à remplir petit à petit, avec un objectif.'} onClose={onClose}>
+      <form
+        className="stack"
+        onSubmit={(e) => {
+          e.preventDefault();
+          save();
+        }}
+      >
+        <Field label="Nom">
+          <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex. Nouveau téléphone, vacances…" maxLength={40} autoFocus={!existing} />
+        </Field>
+        <AmountField label="Objectif" amount={target} big />
+        <button type="submit" className="btn btn-primary btn-block btn-xl">
+          <Icon name="check" size={20} strokeWidth={2.4} /> {existing ? 'Enregistrer' : 'Créer le projet'}
+        </button>
+        {existing && (
+          <button
+            type="button"
+            className="btn btn-danger btn-block"
+            disabled={bal !== 0}
+            onClick={() => {
+              if (dispatch({ type: 'env/project/delete', key: existing.key })) {
+                toast('Projet supprimé');
+                onClose();
+              }
+            }}
+          >
+            Supprimer le projet
+          </button>
+        )}
+        {existing && bal !== 0 && <p className="tiny center" style={{ margin: 0 }}>Pour le supprimer, transfère d’abord ses {money(bal)} vers une autre enveloppe.</p>}
       </form>
     </Sheet>
   );
