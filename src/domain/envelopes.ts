@@ -106,6 +106,10 @@ export interface MonthView {
   divers: { key: EnvelopeKey; initial: number; balance: number };
   /** Disponible du mois = semaines + achats divers (hors épargne et projets). */
   available: number;
+  /** Reste cumulé des 4 semaines. */
+  weeksLeft: number;
+  /** Budget de départ du mois à dépenser = 4 semaines + achats divers. */
+  budget: number;
 }
 
 export function monthView(env: AppData['envelopes'], period: PeriodKey): MonthView | null {
@@ -118,7 +122,8 @@ export function monthView(env: AppData['envelopes'], period: PeriodKey): MonthVi
   });
   const dk = diversKey(period);
   const divers = { key: dk, initial: plan.divers, balance: balance(env, dk) };
-  return { period, month, plan, weeks, divers, available: sum(weeks.map((w) => w.balance)) + divers.balance };
+  const weeksLeft = sum(weeks.map((w) => w.balance));
+  return { period, month, plan, weeks, divers, available: weeksLeft + divers.balance, weeksLeft, budget: plan.weeks + plan.divers };
 }
 
 export function isProject(env: AppData['envelopes'], key: EnvelopeKey): boolean {

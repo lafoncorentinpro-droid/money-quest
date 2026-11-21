@@ -1,4 +1,6 @@
 import { periodLabel } from '../domain/dates';
+import { monthProgress } from '../domain/finance';
+import { percent } from '../domain/money';
 import { balance, EPARGNE, monthView, projectsView, weekOfDate } from '../domain/envelopes';
 import { useStore } from '../store/store';
 import { PeriodSwitcher, useCountUp } from '../ui/components';
@@ -16,6 +18,9 @@ export function EnvelopesHome() {
   const shown = useCountUp(v ? v.available : 0);
   const projects = projectsView(env);
   const thisWeek = month === current ? weekOfDate(today) : 0;
+  const prog = monthProgress(data, month, today);
+  const weeksLeft = v ? v.weeksLeft : 0;
+  const leftPct = v && v.budget > 0 ? Math.max(0, Math.min(100, percent(v.available, v.budget))) : 0;
   const label = periodLabel(month, 1);
 
   return (
@@ -53,25 +58,25 @@ export function EnvelopesHome() {
               Disponible ce mois
             </h2>
             <div className={`hero-big num ${v.available < 0 ? 'is-neg' : ''}`}>{money(shown)}</div>
-            <div className="hero-small" style={{ marginTop: 4 }}>
-              Semaines + achats divers
+            <div className="hero-bar" role="progressbar" aria-valuenow={leftPct} aria-valuemin={0} aria-valuemax={100} aria-label="Budget du mois restant">
+              <span style={{ width: `${leftPct}%` }} />
             </div>
-            <div className="plan-lines">
+            <div className="row-between hero-small">
+              <span>{leftPct} % de ton budget du mois</span>
+              <span>{prog.day === 0 ? 'Mois à venir' : prog.day >= prog.days ? 'Mois terminé' : `Jour ${prog.day} sur ${prog.days}`}</span>
+            </div>
+            <div className="hero-tiles">
               <div>
-                <span>Salaire</span>
-                <strong className="num">{money(v.plan.salary)}</strong>
+                <span>Mes semaines</span>
+                <strong className="num">{money(weeksLeft)}</strong>
               </div>
               <div>
-                <span>Dépenses fixes</span>
-                <strong className="num">− {money(v.plan.fixed)}</strong>
-              </div>
-              <div>
-                <span>Épargne</span>
-                <strong className="num">− {money(v.plan.savings)}</strong>
+                <span>Achats divers</span>
+                <strong className="num">{money(v.divers.balance)}</strong>
               </div>
             </div>
-            <button type="button" className="hero-btn" onClick={() => open({ kind: 'env-month', period: month })}>
-              <Icon name="sliders" size={18} strokeWidth={2} /> Modifier le mois
+            <button type="button" className="hero-edit" onClick={() => open({ kind: 'env-month', period: month })}>
+              <Icon name="sliders" size={16} strokeWidth={2} /> Modifier le mois
             </button>
           </section>
 
@@ -80,9 +85,6 @@ export function EnvelopesHome() {
               <h2 id="sem" className="section-title" style={{ margin: 0 }}>
                 Mes semaines
               </h2>
-              <button type="button" className="link" onClick={() => open({ kind: 'env-transfer' })}>
-                Transférer
-              </button>
             </div>
             <div className="week-grid">
               {v.weeks.map((w) => {

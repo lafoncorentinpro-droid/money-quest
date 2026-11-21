@@ -84,3 +84,13 @@ describe('méthode des enveloppes', () => {
     expect(d.envelopes.projects).toHaveLength(1);
   });
 });
+
+describe('accueil : disponible du mois', () => {
+  it('additionne le reste des semaines et des achats divers, sur un budget de départ de 901 €', () => {
+    const d = run(create(initialData()), { type: 'env/tx/add', tx: { date: T, kind: 'depense', from: weekKey(P, 2), amount: 1000 } });
+    const v = monthView(d.envelopes, P)!;
+    expect(v.weeksLeft).toBe(43000);
+    expect(v.budget).toBe(90100);
+    expect(v.available).toBe(89100);
+  });
+});

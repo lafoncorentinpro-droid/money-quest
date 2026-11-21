@@ -937,3 +937,4 @@ body::before { content: ''; position: fixed; top: 0; left: 0; right: 0; height: 
 .plan-lines > div + div { border-top: 1px solid rgba(255, 255, 255, 0.12); }
 .plan-lines span { font-size: 14px; }
 .plan-lines strong { font-size: 16px; overflow: visible; }
+.hero-edit { margin-top: 14px; align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.22); background: rgba(255, 255, 255, 0.08); color: #dcebf5; font-weight: 600; font-size: 14px; }
