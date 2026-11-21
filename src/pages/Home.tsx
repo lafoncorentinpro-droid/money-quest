@@ -1,6 +1,6 @@
 import { addDays, formatDateLong, formatDateShort, periodLabel, periodRange } from '../domain/dates';
 import { monthSummary, recentByDay, type MonthSummary } from '../domain/finance';
-import { pendingOccurrences } from '../domain/recurring';
+import { FREQUENCY_LABEL, nextDue, pendingOccurrences } from '../domain/recurring';
 import { useStore } from '../store/store';
 import { useCountUp } from '../ui/components';
 import { Fox, type FoxMood } from '../ui/Fox';
@@ -38,6 +38,7 @@ export function Home() {
   const loggedToday = data.progress.xpEvents.some((e) => e.key === `saisie:${today}`);
   const warnCats = s.categories.filter((c) => c.state !== 'ok');
   const catName = (id: string) => data.categories.find((c) => c.id === id);
+  const recExpenses = data.recurring.filter((r) => r.kind === 'expense').sort((a, b) => Number(b.active) - Number(a.active) || a.description.localeCompare(b.description));
 
   const recent = recentByDay(buildRows(data, periodRange(period, data.settings.monthStartDay), false), 3);
 
@@ -123,11 +124,55 @@ export function Home() {
           <Icon name="card" size={26} />
           <span>Dépense</span>
         </button>
+        <button type="button" className="btn" onClick={() => open({ kind: 'recurring', recKind: 'expense' })}>
+          <Icon name="repeat" size={26} />
+          <span>Dépense récurrente</span>
+        </button>
         <button type="button" className="btn" onClick={() => open({ kind: 'income' })}>
           <Icon name="arrow-down-circle" size={26} />
           <span>Budget de base</span>
         </button>
       </div>
+
+      <section className="card" aria-labelledby="recdep">
+        <div className="card-head">
+          <h2 id="recdep">Mes dépenses récurrentes</h2>
+          <button type="button" className="link" onClick={() => open({ kind: 'recurring', recKind: 'expense' })}>
+            + Ajouter
+          </button>
+        </div>
+        {recExpenses.length === 0 ? (
+          <p className="small muted" style={{ margin: 0 }}>
+            Aucune pour l’instant. Ajoute toi-même ton loyer, tes abonnements, ton forfait… Tu pourras en ajouter de nouvelles quand tu veux.
+          </p>
+        ) : (
+          <div className="list">
+            {recExpenses.map((r) => {
+              const next = nextDue(data, r, today);
+              return (
+                <button key={r.id} type="button" className="list-row" onClick={() => open({ kind: 'recurring', id: r.id })} style={{ opacity: r.active ? 1 : 0.6 }}>
+                  <span className="icon-bubble" aria-hidden>
+                    {catName(r.categoryId ?? '')?.icon ?? '🔁'}
+                  </span>
+                  <div className="grow" style={{ minWidth: 0 }}>
+                    <div className="ellipsis">{r.description || catName(r.categoryId ?? '')?.name || 'Dépense récurrente'}</div>
+                    <div className="tiny ellipsis">
+                      {FREQUENCY_LABEL[r.frequency] ?? r.frequency}
+                      {r.active ? (next ? ` · prochaine le ${formatDateShort(next)}` : ' · terminée') : ' · en pause'}
+                    </div>
+                  </div>
+                  <span className="num" style={{ fontWeight: 600 }}>
+                    −{money(r.amount)}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+        <p className="tiny" style={{ margin: '10px 0 0' }}>
+          Rien n’est compté tout seul : à chaque échéance, tu confirmes avec « Payé ? » quand c’est vraiment payé.
+        </p>
+      </section>
 
       <div className="fox-bubble">
         <Fox mood={fox.mood} size={84} equipped={data.progress.equipped} animate={data.settings.animations} />

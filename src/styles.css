@@ -211,7 +211,7 @@ h3 { font-size: var(--fs-headline); font-weight: 600; margin: 0; }
 .link { background: none; border: none; color: var(--soft); font-weight: 600; padding: 0; min-height: var(--tap); font-size: var(--fs-subhead); text-decoration: underline; text-underline-offset: 3px; }
 :root[data-theme='sombre'] .link { color: var(--sky); }
 
-.quick-actions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.quick-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .quick-actions .btn { flex-direction: column; gap: 4px; min-height: 68px; font-size: var(--fs-footnote); padding: 6px; }
 .quick-actions .btn span:first-child { font-size: 22px; }
 
@@ -589,3 +589,4 @@ body::before { content: ''; position: fixed; top: 0; left: 0; right: 0; height: 
 
 /* Toucher des boutons */
 .btn:active:not(:disabled) { transform: scale(0.97); }
+.card-head .link { white-space: nowrap; flex-shrink: 0; }
