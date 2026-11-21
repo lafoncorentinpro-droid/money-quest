@@ -324,3 +324,18 @@ describe('progression', () => {
     expect(monthlyNeeded(20000, 100000, 4)).toBe(20000);
   });
 });
+
+describe('accueil : opérations récentes par jour', () => {
+  it('groupe par jour, du plus récent au plus ancien, avec le solde net du jour', async () => {
+    const { recentByDay } = await import('../src/domain/finance');
+    const it_ = (date: string, amount: number, sign: '+' | '−' | '⇄', planned = false, cancelled = false) => ({ date, amount, sign, planned, cancelled });
+    const groups = recentByDay(
+      [it_('2026-11-10', 150000, '+'), it_('2026-11-12', 1250, '−'), it_('2026-11-12', 500, '−'), it_('2026-11-12', 2000, '⇄'), it_('2026-11-13', 999, '−', true), it_('2026-11-14', 300, '−', false, true), it_('2026-11-08', 100, '−')],
+      2
+    );
+    expect(groups.map((g) => g.date)).toEqual(['2026-11-12', '2026-11-10']);
+    expect(groups[0].net).toBe(-1750); // transfert entre objectifs neutre
+    expect(groups[0].items).toHaveLength(3);
+    expect(groups[1].net).toBe(150000);
+  });
+});

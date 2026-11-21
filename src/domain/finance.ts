@@ -421,3 +421,35 @@ export function monthlyNeeded(current: Cents, target: Cents, months: number): Ce
 export function projectGoal(current: Cents, monthly: Cents, months: number): Cents[] {
   return Array.from({ length: months + 1 }, (_, i) => current + monthly * i);
 }
+
+/* ---------- Accueil : opérations récentes groupées par jour ---------- */
+
+export interface DayItem {
+  date: ISODate;
+  amount: Cents;
+  sign: '+' | '−' | '⇄';
+  planned: boolean;
+  cancelled: boolean;
+}
+
+export interface DayGroup<T extends DayItem> {
+  date: ISODate;
+  /** Solde net du jour : entrées − sorties réalisées (prévu, annulé et transferts entre objectifs exclus). */
+  net: number;
+  items: T[];
+}
+
+/** Regroupe les opérations réalisées par jour (plus récent d'abord) et garde les `maxDays` derniers jours. */
+export function recentByDay<T extends DayItem>(items: T[], maxDays = 3): DayGroup<T>[] {
+  const done = items.filter((i) => !i.planned && !i.cancelled);
+  const byDate = new Map<ISODate, T[]>();
+  for (const i of done) byDate.set(i.date, [...(byDate.get(i.date) ?? []), i]);
+  return [...byDate.keys()]
+    .sort((a, b) => (a < b ? 1 : a > b ? -1 : 0))
+    .slice(0, maxDays)
+    .map((date) => {
+      const day = byDate.get(date)!;
+      const net = day.reduce((acc, i) => acc + (i.sign === '+' ? i.amount : i.sign === '−' ? -i.amount : 0), 0);
+      return { date, net, items: day };
+    });
+}

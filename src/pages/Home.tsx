@@ -1,5 +1,5 @@
-import { addDays, formatDateShort, periodLabel } from '../domain/dates';
-import { goalBalance, monthSummary, totalSavings, type MonthSummary } from '../domain/finance';
+import { addDays, formatDateLong, formatDateShort, periodLabel, periodRange } from '../domain/dates';
+import { goalBalance, monthSummary, recentByDay, totalSavings, type MonthSummary } from '../domain/finance';
 import { levelProgress, missionsView, regionForLevel, totalXp } from '../domain/game';
 import { percent } from '../domain/money';
 import { pendingOccurrences } from '../domain/recurring';
@@ -9,6 +9,7 @@ import { Fox, type FoxMood } from '../ui/Fox';
 import { go } from '../ui/router';
 import { useSheets } from '../ui/sheets';
 import { Icon } from '../ui/Icon';
+import { buildRows, OpRowView } from './operations';
 
 export function CalcExplain({ s }: { s: MonthSummary }) {
   const { money } = useStore();
@@ -62,7 +63,7 @@ function foxMessage(s: MonthSummary, hasData: boolean, nickname: string): { mood
 
 function foxMessageRaw(s: MonthSummary, hasData: boolean, nickname: string): { mood: FoxMood; text: string } {
   const hi = nickname ? `${nickname}, ` : '';
-  if (!hasData) return { mood: 'accueil', text: `Bienvenue au QG${nickname ? `, ${nickname}` : ''} ! On prépare ensemble ton premier mois ? Commence par ton revenu principal.` };
+  if (!hasData) return { mood: 'accueil', text: `Bienvenue au QG${nickname ? `, ${nickname}` : ''} ! Dès que tu veux noter quelque chose, le bouton + est là.` };
   const over = s.categories.filter((c) => c.state === 'depasse').length;
   if (over > 0) return { mood: 'encourageant', text: `${hi}une catégorie a dépassé sa limite. Ça arrive : regarde ton budget, on ajuste sans stress.` };
   if (s.hasBudget && s.budgetTotal > 0 && s.budgetSpent <= s.budgetTotal) return { mood: 'heureux', text: `${hi}ton budget tient la route. Continue de noter tes dépenses au fil de l’eau !` };
@@ -70,7 +71,7 @@ function foxMessageRaw(s: MonthSummary, hasData: boolean, nickname: string): { m
 }
 
 export function Home() {
-  const { data, period, today, money, dispatch } = useStore();
+  const { data, period, today, money } = useStore();
   const open = useSheets();
   const s = monthSummary(data, period);
   const xp = totalXp(data.progress);
@@ -89,12 +90,8 @@ export function Home() {
   const catName = (id: string) => data.categories.find((c) => c.id === id);
   const savings = totalSavings(data);
 
-  const steps = [
-    { done: data.recurring.some((r) => r.kind === 'income') || data.incomes.length > 0, label: 'Ajouter ton salaire ou revenu principal', action: () => open({ kind: 'recurring', recKind: 'income' }) },
-    { done: data.recurring.some((r) => r.kind === 'expense'), label: 'Programmer tes charges fixes (loyer, abonnements…)', action: () => open({ kind: 'recurring', recKind: 'expense' }) },
-    { done: !!data.budgets[period]?.categories.length, label: 'Préparer le budget du mois', action: () => go('argent/budget') }
-  ];
-  const showOnboarding = !data.settings.onboardingDone && steps.some((st) => !st.done);
+  const recent = recentByDay(buildRows(data, periodRange(period, data.settings.monthStartDay), false), 3);
+  const budgetLeft = s.budgetTotal - s.budgetSpent;
 
   return (
     <div className="page">
@@ -109,30 +106,6 @@ export function Home() {
           ⭐ Niv. {lp.level}
         </button>
       </header>
-
-      <div className="fox-bubble">
-        <Fox mood={fox.mood} size={84} equipped={data.progress.equipped} animate={data.settings.animations} />
-        <div className="speech">{fox.text}</div>
-      </div>
-
-      {showOnboarding && (
-        <section className="card card-accent stack" aria-labelledby="onb">
-          <h2 id="onb">Pour bien démarrer</h2>
-          <ol className="stack" style={{ margin: 0, paddingLeft: 0, listStyle: 'none' }}>
-            {steps.map((st, i) => (
-              <li key={i}>
-                <button type="button" className="btn btn-block" style={{ justifyContent: 'flex-start', textAlign: 'left' }} onClick={st.action} disabled={st.done}>
-                  <span aria-hidden>{st.done ? '✅' : `${i + 1}.`}</span> {st.label}
-                  {st.done && <span className="sr-only"> (fait)</span>}
-                </button>
-              </li>
-            ))}
-          </ol>
-          <button type="button" className="link" onClick={() => dispatch({ type: 'settings/update', settings: { onboardingDone: true } })}>
-            Masquer ce guide
-          </button>
-        </section>
-      )}
 
       <section className="card stack" aria-labelledby="dispo">
         <div className="row-between">
@@ -172,6 +145,62 @@ export function Home() {
         <CalcExplain s={s} />
       </section>
 
+      <section className="card stack" aria-labelledby="bud">
+        <div className="row-between">
+          <h2 id="bud">Budget du mois</h2>
+          <button type="button" className="link" onClick={() => go('argent/budget')}>
+            {s.hasBudget && s.budgetTotal > 0 ? 'Détails' : 'Créer'}
+          </button>
+        </div>
+        {s.hasBudget && s.budgetTotal > 0 ? (
+          <>
+            <div>
+              <span className={`budget-left num ${budgetLeft < 0 ? 'neg' : 'pos'}`}>{money(Math.abs(budgetLeft))}</span>{' '}
+              <span className="muted">{budgetLeft < 0 ? 'de dépassement' : 'restants'}</span>
+              <div className="tiny">sur {money(s.budgetTotal)} prévus ce mois</div>
+            </div>
+            <Progress value={s.budgetSpent} max={s.budgetTotal} tone={budgetLeft < 0 ? 'depasse' : percent(s.budgetSpent, s.budgetTotal) >= 80 ? 'proche' : 'ok'} label="Budget utilisé" />
+            <div className="row-between tiny">
+              <span className="num">{money(s.budgetSpent)} dépensés</span>
+              <span className="num">{percent(s.budgetSpent, s.budgetTotal)} % utilisé</span>
+            </div>
+          </>
+        ) : (
+          <p className="small muted" style={{ margin: 0 }}>Pas encore de budget ce mois-ci. Fixe une limite pour voir d’un coup d’œil ce qu’il te reste.</p>
+        )}
+      </section>
+
+      <section className="card" aria-labelledby="recent">
+        <div className="card-head">
+          <h2 id="recent">Dernières opérations</h2>
+          <button type="button" className="link" onClick={() => go('argent/operations')}>
+            Tout voir
+          </button>
+        </div>
+        {recent.length === 0 ? (
+          <p className="small muted" style={{ margin: 0 }}>Rien de noté ce mois-ci pour l’instant.</p>
+        ) : (
+          <div className="stack">
+            {recent.map((d) => (
+              <div key={d.date}>
+                <div className="day-head row-between tiny">
+                  <span style={{ textTransform: 'capitalize' }}>{d.date === today ? 'Aujourd’hui' : formatDateLong(d.date)}</span>
+                  <span className={`num ${d.net > 0 ? 'pos' : ''}`}>
+                    {d.net > 0 ? '+' : d.net < 0 ? '−' : ''}
+                    {money(Math.abs(d.net))}
+                  </span>
+                </div>
+                <div className="list">
+                  {d.items.map((r) => (
+                    <OpRowView key={r.key} row={r} money={money} onOpen={open} />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
       <div className="quick-actions">
         <button type="button" className="btn btn-primary" onClick={() => open({ kind: 'expense' })}>
           <Icon name="card" size={26} />
@@ -187,6 +216,11 @@ export function Home() {
         </button>
       </div>
 
+      <div className="fox-bubble">
+        <Fox mood={fox.mood} size={84} equipped={data.progress.equipped} animate={data.settings.animations} />
+        <div className="speech">{fox.text}</div>
+      </div>
+
       {alerts.rappelSaisie && hasData && !loggedToday && <div className="notice notice-gold small">📝 Rien de noté aujourd’hui pour l’instant. Une dépense ? Le bouton + est là.</div>}
 
       {alerts.budget && warnCats.length > 0 && (
@@ -199,24 +233,6 @@ export function Home() {
               </span>
             </div>
           ))}
-        </section>
-      )}
-
-      {s.hasBudget && s.budgetTotal > 0 && (
-        <section className="card stack" aria-labelledby="bud">
-          <div className="row-between">
-            <h2 id="bud">Budget du mois</h2>
-            <button type="button" className="link" onClick={() => go('argent/budget')}>
-              Détails
-            </button>
-          </div>
-          <Progress value={s.budgetSpent} max={s.budgetTotal} tone={s.budgetSpent > s.budgetTotal ? 'depasse' : percent(s.budgetSpent, s.budgetTotal) >= 80 ? 'proche' : 'ok'} label="Budget utilisé" />
-          <div className="row-between small">
-            <span className="num">
-              {money(s.budgetSpent)} / {money(s.budgetTotal)}
-            </span>
-            <span className="muted num">Reste {money(s.budgetTotal - s.budgetSpent)}</span>
-          </div>
         </section>
       )}
 

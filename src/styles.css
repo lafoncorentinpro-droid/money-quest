@@ -168,6 +168,8 @@ h3 { font-size: var(--fs-headline); font-weight: 600; margin: 0; }
 .card-accent { background: linear-gradient(160deg, var(--bg-accent), var(--surface)); }
 .card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; gap: 8px; }
 .hero-amount { font-family: var(--font-title); font-size: 38px; font-weight: 700; line-height: 1.1; letter-spacing: -0.02em; }
+.budget-left { font-family: var(--font-title); font-size: 26px; font-weight: 700; letter-spacing: -0.01em; }
+.day-head { padding: 6px 0 4px; border-bottom: 1px solid var(--border); font-weight: 600; }
 .stat { background: var(--surface-2); border-radius: var(--radius-sm); padding: 10px 12px; min-width: 0; }
 .stat .label { font-size: var(--fs-footnote); color: var(--text-2); }
 .stat .value { font-weight: 650; font-size: var(--fs-headline); }
