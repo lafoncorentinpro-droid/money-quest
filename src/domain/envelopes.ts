@@ -178,3 +178,14 @@ export function envelopeChoices(env: AppData['envelopes'], period: PeriodKey): E
   list.push(...env.projects.map((p) => p.key), EPARGNE);
   return list;
 }
+
+/**
+ * Reste d'achats divers du mois précédent, reportable à la création d'un mois.
+ * 0 si le mois précédent n'existe pas ou si son reste est nul ou négatif (rien n'est retiré au nouveau mois).
+ * Le report se fait par un transfert explicite : une fois fait, le mois précédent est à 0, donc jamais reporté deux fois.
+ */
+export function diversCarryOver(env: AppData['envelopes'], period: PeriodKey): Cents {
+  const prev = shiftPeriod(period, -1);
+  if (!env.months[prev]) return 0;
+  return Math.max(0, balance(env, diversKey(prev)));
+}

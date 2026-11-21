@@ -94,3 +94,26 @@ describe('accueil : disponible du mois', () => {
     expect(v.available).toBe(89100);
   });
 });
+
+describe('report des achats divers au mois suivant', () => {
+  it('reporte le reste positif une seule fois, par un transfert tracé', async () => {
+    const { diversCarryOver } = await import('../src/domain/envelopes');
+    let d = run(create(initialData()), { type: 'env/tx/add', tx: { date: T, kind: 'depense', from: diversKey(P), amount: 34100 } }); // il reste 120 €
+    expect(diversCarryOver(d.envelopes, '2026-12')).toBe(12000);
+    d = run(
+      d,
+      { type: 'env/month/save', month: nextMonthDefaults(d.envelopes, '2026-12') },
+      { type: 'env/tx/add', tx: { date: T, kind: 'transfert', from: diversKey(P), to: diversKey('2026-12'), amount: 12000 } }
+    );
+    expect(balance(d.envelopes, diversKey('2026-12'))).toBe(46100 + 12000);
+    expect(balance(d.envelopes, diversKey(P))).toBe(0);
+    expect(diversCarryOver(d.envelopes, '2026-12')).toBe(0); // plus rien à reporter
+  });
+
+  it('ne reporte rien si le mois précédent est à découvert ou n’existe pas', async () => {
+    const { diversCarryOver } = await import('../src/domain/envelopes');
+    const d = run(create(initialData()), { type: 'env/tx/add', tx: { date: T, kind: 'depense', from: diversKey(P), amount: 50000 } });
+    expect(diversCarryOver(d.envelopes, '2026-12')).toBe(0);
+    expect(diversCarryOver(d.envelopes, '2027-03')).toBe(0);
+  });
+});

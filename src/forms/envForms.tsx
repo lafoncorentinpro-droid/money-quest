@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { formatDateShort, periodLabel } from '../domain/dates';
+import { formatDateShort, periodLabel, shiftPeriod } from '../domain/dates';
 import {
   balance,
+  diversCarryOver,
   diversKey,
   envelopeChoices,
   envelopeLabel,
@@ -18,7 +19,7 @@ import {
 import { centsToInput, parseAmount } from '../domain/money';
 import type { EnvelopeKey, PeriodKey } from '../domain/types';
 import { useStore } from '../store/store';
-import { AmountField, Field, Sheet, useAmount } from '../ui/components';
+import { AmountField, Field, Sheet, Switch, useAmount } from '../ui/components';
 import { Icon } from '../ui/Icon';
 
 const monthShort = (p: string) => periodLabel(p as PeriodKey, 1).split(' ')[0].slice(0, 4) + '.';
@@ -41,7 +42,7 @@ interface Row {
 }
 
 export function EnvMonthForm({ period, onClose }: { period: PeriodKey; onClose: () => void }) {
-  const { data, dispatch, toast, money } = useStore();
+  const { data, dispatch, toast, money, today } = useStore();
   const existing = data.envelopes.months[period];
   const init = existing ?? nextMonthDefaults(data.envelopes, period);
   const salary = useAmount(init.salary || undefined);
@@ -51,13 +52,21 @@ export function EnvMonthForm({ period, onClose }: { period: PeriodKey; onClose: 
   const fixed = rows.map((r) => ({ id: r.id, name: r.name, amount: parseAmount(r.text) ?? 0 }));
   const plan = monthPlan({ salary: salary.cents ?? 0, fixed, savings: savings.cents ?? 0, weekly: weekly.cents ?? 0 });
   const setRow = (id: string, patch: Partial<Row>) => setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  // Report des achats divers restants du mois précédent (seulement à la création du mois).
+  const carry = existing ? 0 : diversCarryOver(data.envelopes, period);
+  const prevName = periodLabel(shiftPeriod(period, -1), 1).split(' ')[0];
+  const [withCarry, setWithCarry] = useState(true);
+  const carried = carry > 0 && withCarry ? carry : 0;
 
   const save = () => {
     salary.setTouched(true);
     if (salary.cents === null || savings.cents === null || weekly.cents === null) return;
     if (rows.some((r) => parseAmount(r.text) === null)) return toast('Un montant de dépense fixe est invalide.', 'error');
     if (dispatch({ type: 'env/month/save', month: { period, salary: salary.cents, fixed, savings: savings.cents, weekly: weekly.cents } })) {
-      toast(existing ? 'Mois mis à jour' : 'Mois créé', 'success');
+      if (carried > 0) {
+        dispatch({ type: 'env/tx/add', tx: { date: today, kind: 'transfert', from: diversKey(shiftPeriod(period, -1)), to: diversKey(period), amount: carried, note: `Reste de ${prevName}` } });
+      }
+      toast(existing ? 'Mois mis à jour' : carried > 0 ? `Mois créé, avec ${money(carried)} de ${prevName}` : 'Mois créé', 'success');
       onClose();
     }
   };
@@ -117,12 +126,21 @@ export function EnvMonthForm({ period, onClose }: { period: PeriodKey; onClose: 
             <span>− {WEEKS} semaines</span>
             <span className="num">{money(plan.weeks)}</span>
           </div>
+          {carried > 0 && (
+            <div className="row-between">
+              <span>+ Reste de {prevName}</span>
+              <span className="num pos">{money(carried)}</span>
+            </div>
+          )}
           <div className="row-between plan-total">
             <strong>= Achats divers</strong>
-            <strong className={`num ${plan.divers < 0 ? 'neg' : ''}`}>{money(plan.divers)}</strong>
+            <strong className={`num ${plan.divers + carried < 0 ? 'neg' : ''}`}>{money(plan.divers + carried)}</strong>
           </div>
         </div>
         {plan.divers < 0 && <div className="notice notice-warn small">Le plan dépasse le salaire : baisse l’épargne ou le budget par semaine.</div>}
+        {carry > 0 && (
+          <Switch card label={`Ajouter les ${money(carry)} restants de ${prevName}`} desc="Tes achats divers non dépensés passent dans ce nouveau mois." checked={withCarry} onChange={setWithCarry} />
+        )}
 
         <button type="submit" className="btn btn-primary btn-block btn-xl">
           <Icon name="check" size={20} strokeWidth={2.4} /> {existing ? 'Enregistrer' : 'Créer le mois'}
