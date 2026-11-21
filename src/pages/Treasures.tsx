@@ -8,6 +8,7 @@ import { Confirm, Empty, PageHead, Progress } from '../ui/components';
 import { Fox } from '../ui/Fox';
 import { go } from '../ui/router';
 import { useSheets } from '../ui/sheets';
+import { Icon } from '../ui/Icon';
 
 export function Treasures({ id }: { id?: string }) {
   const open = useSheets();
@@ -182,7 +183,7 @@ function GoalDetail({ id }: { id: string }) {
                     {money(m.amount)}
                   </span>
                   <button type="button" className="btn btn-sm btn-ghost" aria-label="Supprimer ce mouvement" onClick={() => setToDelete(m)}>
-                    ✕
+                    <Icon name="xmark" size={18} />
                   </button>
                 </div>
               );

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { formatDateShort, isValidISO } from '../domain/dates';
+import { formatDateShort, isValidISO, periodOf } from '../domain/dates';
 import { GOAL_TEMPLATES, INCOME_TYPE_LABEL } from '../domain/defaults';
 import { goalBalance, netExpense, refundedAmount } from '../domain/finance';
 import { FREQUENCY_LABEL } from '../domain/recurring';
@@ -10,11 +10,12 @@ import { AmountField, Confirm, Field, Sheet, Switch, useAmount } from '../ui/com
 /* ======================= Dépense ======================= */
 
 export function ExpenseForm({ existing, onClose, preset }: { existing?: Expense; onClose: () => void; preset?: Partial<Expense> }) {
-  const { data, dispatch, today, toast, money } = useStore();
+  const { data, dispatch, today, defaultDate, toast, money } = useStore();
   const init = existing ?? preset;
   const amount = useAmount(init?.amount);
   const [categoryId, setCategoryId] = useState(init?.categoryId ?? '');
-  const [date, setDate] = useState(init?.date ?? today);
+  const [date, setDate] = useState(init?.date ?? defaultDate);
+  const [incomeId, setIncomeId] = useState(init?.incomeId ?? '');
   const [description, setDescription] = useState(init?.description ?? '');
   const [nature, setNature] = useState<Nature>(init?.nature ?? 'variable');
   const [status, setStatus] = useState<ExpenseStatus>(init?.status ?? (init?.date && init.date > today ? 'prevue' : 'realisee'));
@@ -26,6 +27,10 @@ export function ExpenseForm({ existing, onClose, preset }: { existing?: Expense;
   const [refundDate, setRefundDate] = useState(today);
 
   const cats = data.categories.filter((c) => !c.archived || c.id === categoryId);
+  // Revenus du même mois que la date choisie : seuls rattachements possibles
+  const sd = data.settings.monthStartDay;
+  const monthIncomes = isValidISO(date) ? data.incomes.filter((i) => i.status !== 'annule' && periodOf(i.date, sd) === periodOf(date, sd)) : [];
+  const linkValid = !incomeId || monthIncomes.some((i) => i.id === incomeId);
   const errors = {
     amount: !amount.valid,
     category: !categoryId,
@@ -37,7 +42,7 @@ export function ExpenseForm({ existing, onClose, preset }: { existing?: Expense;
     setTried(true);
     amount.setTouched(true);
     if (invalid) return;
-    const fields = { amount: amount.cents!, categoryId, date, description: description.trim(), nature, status, note: note.trim() || undefined };
+    const fields = { amount: amount.cents!, categoryId, date, description: description.trim(), nature, status, note: note.trim() || undefined, incomeId: linkValid && incomeId ? incomeId : undefined };
     if (existing) {
       if (fields.amount < refundedAmount(existing)) {
         toast('Le montant ne peut pas être inférieur aux remboursements déjà enregistrés.', 'error');
@@ -81,14 +86,24 @@ export function ExpenseForm({ existing, onClose, preset }: { existing?: Expense;
           </Field>
           <Field label="Statut">
             <select className="input" value={status} onChange={(e) => setStatus(e.target.value as ExpenseStatus)}>
-              <option value="realisee">Réalisée</option>
+              <option value="realisee">Payée</option>
               <option value="prevue">Prévue</option>
               <option value="annulee">Annulée</option>
             </select>
           </Field>
         </div>
-        <Field label="Description (facultatif)">
+        <Field label="Libellé (facultatif)">
           <input className="input" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ex. Marché du samedi" maxLength={120} />
+        </Field>
+        <Field label="Rattacher à un revenu" hint="Pour suivre comment chaque revenu est utilisé. Ne change aucun total.">
+          <select className="input" value={linkValid ? incomeId : ''} onChange={(e) => setIncomeId(e.target.value)}>
+            <option value="">Dépense générale du mois</option>
+            {monthIncomes.map((i) => (
+              <option key={i.id} value={i.id}>
+                {i.description || INCOME_TYPE_LABEL[i.type]} · {money(i.amount)}
+              </option>
+            ))}
+          </select>
         </Field>
         {!showMore ? (
           <button type="button" className="link" onClick={() => setShowMore(true)}>
@@ -109,7 +124,7 @@ export function ExpenseForm({ existing, onClose, preset }: { existing?: Expense;
             </Field>
           </>
         )}
-        {status === 'prevue' && <div className="notice notice-info small">Une dépense prévue n’est pas comptée dans les dépenses réalisées tant que tu ne la passes pas en « Réalisée ».</div>}
+        {status === 'prevue' && <div className="notice notice-info small">Une dépense prévue n’est pas comptée dans les dépenses payées tant que tu ne la passes pas en « Payée ».</div>}
 
         <button type="submit" className="btn btn-primary btn-block">
           {existing ? 'Enregistrer les modifications' : 'Ajouter la dépense'}
@@ -200,10 +215,10 @@ export function ExpenseForm({ existing, onClose, preset }: { existing?: Expense;
 /* ======================= Revenu ======================= */
 
 export function IncomeForm({ existing, onClose }: { existing?: Income; onClose: () => void }) {
-  const { dispatch, today, toast, money } = useStore();
+  const { dispatch, defaultDate, toast, money } = useStore();
   const amount = useAmount(existing?.amount);
   const [type, setType] = useState<IncomeType>(existing?.type ?? 'salaire');
-  const [date, setDate] = useState(existing?.date ?? today);
+  const [date, setDate] = useState(existing?.date ?? defaultDate);
   const [description, setDescription] = useState(existing?.description ?? '');
   const [status, setStatus] = useState<IncomeStatus>(existing?.status ?? 'recu');
   const [note, setNote] = useState(existing?.note ?? '');
@@ -229,8 +244,11 @@ export function IncomeForm({ existing, onClose }: { existing?: Income; onClose: 
           save();
         }}
       >
-        <AmountField amount={amount} big autoFocus={!existing} />
-        <div className="chips" role="group" aria-label="Type de revenu">
+        <Field label="Nom du revenu">
+          <input className="input" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={`Ex. ${INCOME_TYPE_LABEL[type]}`} maxLength={120} />
+        </Field>
+        <AmountField amount={amount} big />
+        <div className="chips" role="group" aria-label="Type de revenu" style={{ flexWrap: 'wrap' }}>
           {(Object.keys(INCOME_TYPE_LABEL) as IncomeType[]).map((t) => (
             <button type="button" key={t} className="chip" aria-pressed={type === t} onClick={() => setType(t)}>
               {INCOME_TYPE_LABEL[t]}
@@ -238,7 +256,7 @@ export function IncomeForm({ existing, onClose }: { existing?: Income; onClose: 
           ))}
         </div>
         <div className="grid-2">
-          <Field label="Date">
+          <Field label="Date de réception">
             <input type="date" className="input" value={date} onChange={(e) => setDate(e.target.value)} />
           </Field>
           <Field label="Statut">
@@ -249,9 +267,6 @@ export function IncomeForm({ existing, onClose }: { existing?: Income; onClose: 
             </select>
           </Field>
         </div>
-        <Field label="Description (facultatif)">
-          <input className="input" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={INCOME_TYPE_LABEL[type]} maxLength={120} />
-        </Field>
         <Field label="Note (facultatif)">
           <textarea className="input" value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} />
         </Field>
@@ -576,35 +591,16 @@ export function GoalForm({ existing, onClose }: { existing?: SavingsGoal; onClos
 /* ======================= Mouvement d'épargne ======================= */
 
 export function MovementForm({ goalId: initialGoal, type: initialType = 'versement', onClose }: { goalId?: string; type?: MovementType; onClose: () => void }) {
-  const { data, dispatch, today, toast, money } = useStore();
+  const { data, dispatch, defaultDate, toast, money } = useStore();
   const goals = data.goals;
-  const [goalId, setGoalId] = useState(initialGoal ?? goals.find((g) => !g.paused)?.id ?? goals[0]?.id ?? '');
-  const [type, setType] = useState<MovementType>(initialType);
+  const hasFree = goals.some((g) => g.id === 'epargne-libre');
+  const [goalId, setGoalId] = useState(initialGoal ?? goals.find((g) => !g.paused)?.id ?? '');
+  const [type, setType] = useState<MovementType>(goals.length ? initialType : 'versement');
   const [toGoalId, setToGoalId] = useState(goals.find((g) => g.id !== goalId)?.id ?? '');
   const amount = useAmount();
-  const [date, setDate] = useState(today);
+  const [date, setDate] = useState(defaultDate);
   const [note, setNote] = useState('');
   const balance = goalId ? goalBalance(goalId, data.movements) : 0;
-
-  if (!goals.length) {
-    return (
-      <Sheet title="Mettre de côté" onClose={onClose}>
-        <div className="stack center">
-          <p className="muted">Crée d’abord un objectif d’épargne pour y verser de l’argent.</p>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => {
-              onClose();
-              window.location.hash = '/tresors/nouveau';
-            }}
-          >
-            Créer un objectif
-          </button>
-        </div>
-      </Sheet>
-    );
-  }
 
   return (
     <Sheet title="Mouvement d’épargne" onClose={onClose}>
@@ -628,17 +624,30 @@ export function MovementForm({ goalId: initialGoal, type: initialType = 'verseme
           <button type="button" aria-pressed={type === 'versement'} onClick={() => setType('versement')}>
             Verser
           </button>
-          <button type="button" aria-pressed={type === 'retrait'} onClick={() => setType('retrait')}>
-            Retirer
-          </button>
+          {goals.length > 0 && (
+            <button
+              type="button"
+              aria-pressed={type === 'retrait'}
+              onClick={() => {
+                setType('retrait');
+                if (!goalId) setGoalId(goals[0].id);
+              }}
+            >
+              Retirer
+            </button>
+          )}
           {goals.length > 1 && (
             <button type="button" aria-pressed={type === 'transfert'} onClick={() => setType('transfert')}>
               Transférer
             </button>
           )}
         </div>
-        <Field label={type === 'transfert' ? 'Depuis' : 'Objectif'} hint={`Solde actuel : ${money(balance)}`}>
+        <Field
+          label={type === 'transfert' ? 'Depuis' : type === 'retrait' ? 'Objectif' : 'Objectif associé (facultatif)'}
+          hint={goalId ? `Solde actuel : ${money(balance)}` : 'Sans objectif précis, le versement va dans « Épargne libre ».'}
+        >
           <select className="input" value={goalId} onChange={(e) => setGoalId(e.target.value)}>
+            {type === 'versement' && !hasFree && <option value="">🪙 Épargne libre (sans objectif)</option>}
             {goals.map((g) => (
               <option key={g.id} value={g.id}>
                 {g.icon} {g.name}

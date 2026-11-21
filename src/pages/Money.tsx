@@ -1,51 +1,52 @@
 import { useMemo, useState } from 'react';
 import { formatDateLong, periodRange } from '../domain/dates';
 import { monthSummary } from '../domain/finance';
-import type { PeriodKey } from '../domain/types';
 import { useStore } from '../store/store';
-import { Empty, PeriodSwitcher } from '../ui/components';
+import { Empty, PageHead, PeriodSwitcher } from '../ui/components';
 import { go } from '../ui/router';
 import { useSheets } from '../ui/sheets';
 import { BilanPage, BudgetPage, CalendarPage, CategoriesPage, RecurringPage, SimulatorPage, StatsPage } from './MoneyViews';
 import { buildRows, OpRowView } from './operations';
+import { ExpensesStep, IncomesStep, MonthOverview, SavingsStep } from './Month';
 
-const SUBNAV: [string, string][] = [
-  ['', 'Opérations'],
-  ['budget', 'Budget'],
-  ['recurrences', 'Récurrences'],
-  ['calendrier', 'Calendrier'],
-  ['stats', 'Statistiques'],
-  ['simulateur', 'Simulateur']
-];
+const TOOLS: Record<string, string> = {
+  operations: 'Toutes les opérations',
+  budget: 'Budget par catégorie',
+  recurrences: 'Récurrences',
+  calendrier: 'Calendrier',
+  stats: 'Statistiques',
+  simulateur: 'Simulateur'
+};
 
 export function Money({ sub, arg }: { sub?: string; arg?: string }) {
   if (sub === 'bilan') return <BilanPage period={arg} />;
   if (sub === 'categories') return <CategoriesPage />;
+  if (sub && TOOLS[sub]) {
+    return (
+      <div className="page">
+        <PageHead title={TOOLS[sub]} backTo="argent" />
+        {sub === 'budget' ? (
+          <BudgetPage />
+        ) : sub === 'recurrences' ? (
+          <RecurringPage />
+        ) : sub === 'calendrier' ? (
+          <CalendarPage />
+        ) : sub === 'stats' ? (
+          <StatsPage />
+        ) : sub === 'simulateur' ? (
+          <SimulatorPage />
+        ) : (
+          <Operations />
+        )}
+      </div>
+    );
+  }
   return (
     <div className="page">
       <header className="page-head">
-        <h1>Mon Argent</h1>
+        <h1>Mon argent</h1>
       </header>
-      <nav className="segmented" aria-label="Sections Mon Argent">
-        {SUBNAV.map(([k, label]) => (
-          <button key={k} type="button" aria-pressed={(sub ?? '') === k} onClick={() => go(k ? `argent/${k}` : 'argent')}>
-            {label}
-          </button>
-        ))}
-      </nav>
-      {sub === 'budget' ? (
-        <BudgetPage />
-      ) : sub === 'recurrences' ? (
-        <RecurringPage />
-      ) : sub === 'calendrier' ? (
-        <CalendarPage />
-      ) : sub === 'stats' ? (
-        <StatsPage />
-      ) : sub === 'simulateur' ? (
-        <SimulatorPage />
-      ) : (
-        <Operations />
-      )}
+      {sub === 'revenus' ? <IncomesStep /> : sub === 'depenses' ? <ExpensesStep /> : sub === 'epargne' ? <SavingsStep /> : <MonthOverview />}
     </div>
   );
 }
@@ -54,9 +55,8 @@ type TypeFilter = 'tout' | 'depenses' | 'revenus' | 'epargne' | 'prevues';
 type Sort = 'date-desc' | 'date-asc' | 'amount-desc' | 'amount-asc';
 
 function Operations() {
-  const { data, period: current, money } = useStore();
+  const { data, month: period, setMonth: setPeriod, money } = useStore();
   const open = useSheets();
-  const [period, setPeriod] = useState<PeriodKey>(current);
   const [q, setQ] = useState('');
   const [type, setType] = useState<TypeFilter>('tout');
   const [cat, setCat] = useState('');

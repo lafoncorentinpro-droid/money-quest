@@ -3,6 +3,7 @@ import { CategoryForm, ConfirmOccurrenceForm, ExpenseForm, GoalForm, IncomeForm,
 import type { Expense, MovementType, RecurringTransaction } from '../domain/types';
 import { useStore } from '../store/store';
 import { Sheet } from './components';
+import { Icon } from './Icon';
 
 /** Ouverture centralisée des formulaires, depuis n'importe quel écran. */
 
@@ -38,16 +39,16 @@ function SheetRenderer({ spec, close, open }: { spec: SheetSpec; close: () => vo
         <Sheet title="Ajouter" onClose={close}>
           <div className="stack">
             <button type="button" className="btn btn-primary btn-block" style={{ minHeight: 60, justifyContent: 'flex-start' }} onClick={() => open({ kind: 'expense' })}>
-              <span aria-hidden style={{ fontSize: 22 }}>🪙</span> Une dépense
+              <Icon name="card" size={24} /> Une dépense
             </button>
             <button type="button" className="btn btn-block" style={{ minHeight: 60, justifyContent: 'flex-start' }} onClick={() => open({ kind: 'income' })}>
-              <span aria-hidden style={{ fontSize: 22 }}>💧</span> Un revenu
+              <Icon name="arrow-down-circle" size={24} /> Un revenu
             </button>
             <button type="button" className="btn btn-block" style={{ minHeight: 60, justifyContent: 'flex-start' }} onClick={() => open({ kind: 'movement' })}>
-              <span aria-hidden style={{ fontSize: 22 }}>🧰</span> Un versement d’épargne
+              <Icon name="chest" size={24} /> Un versement d’épargne
             </button>
             <button type="button" className="btn btn-block" style={{ minHeight: 60, justifyContent: 'flex-start' }} onClick={() => open({ kind: 'recurring' })}>
-              <span aria-hidden style={{ fontSize: 22 }}>🔁</span> Une charge ou un revenu récurrent
+              <Icon name="repeat" size={24} /> Une charge ou un revenu récurrent
             </button>
           </div>
         </Sheet>

@@ -66,19 +66,41 @@ export class ActionError extends Error {}
 
 const replace = <T extends { id: ID }>(list: T[], item: T) => list.map((x) => (x.id === item.id ? item : x));
 
+export const FREE_GOAL_ID = 'epargne-libre';
+
+/** Un rattachement n'est valable que vers un revenu existant, non annulé, du même mois budgétaire. */
+function checkLink(data: AppData, e: Expense): Expense {
+  if (!e.incomeId) return e;
+  const inc = data.incomes.find((i) => i.id === e.incomeId);
+  const sd = data.settings.monthStartDay;
+  if (!inc || inc.status === 'annule' || periodOf(inc.date, sd) !== periodOf(e.date, sd)) return { ...e, incomeId: undefined };
+  return e;
+}
+
 function base(data: AppData, a: Stamped, now: string): AppData {
   switch (a.type) {
     case 'income/add':
       return { ...data, incomes: [...data.incomes, { ...a.income, id: uid('inc'), createdAt: now, updatedAt: now }] };
-    case 'income/update':
-      return { ...data, incomes: replace(data.incomes, { ...a.income, updatedAt: now }) };
+    case 'income/update': {
+      const next = { ...data, incomes: replace(data.incomes, { ...a.income, updatedAt: now }) };
+      // Si le revenu change de mois, les dépenses d'un autre mois ne peuvent plus y être rattachées.
+      return { ...next, expenses: next.expenses.map((e) => (e.incomeId === a.income.id ? checkLink(next, e) : e)) };
+    }
     case 'income/delete':
-      return { ...data, incomes: data.incomes.filter((i) => i.id !== a.id) };
+      return {
+        ...data,
+        incomes: data.incomes.filter((i) => i.id !== a.id),
+        // Les dépenses rattachées deviennent des dépenses générales : rien n'est supprimé.
+        expenses: data.expenses.map((e) => (e.incomeId === a.id ? { ...e, incomeId: undefined, updatedAt: now } : e))
+      };
 
     case 'expense/add':
-      return { ...data, expenses: [...data.expenses, { ...a.expense, refunds: a.expense.refunds ?? [], id: uid('exp'), createdAt: now, updatedAt: now }] };
+      return {
+        ...data,
+        expenses: [...data.expenses, checkLink(data, { ...a.expense, refunds: a.expense.refunds ?? [], id: uid('exp'), createdAt: now, updatedAt: now })]
+      };
     case 'expense/update':
-      return { ...data, expenses: replace(data.expenses, { ...a.expense, updatedAt: now }) };
+      return { ...data, expenses: replace(data.expenses, checkLink(data, { ...a.expense, updatedAt: now })) };
     case 'expense/delete':
       return { ...data, expenses: data.expenses.filter((e) => e.id !== a.id) };
 
@@ -193,8 +215,16 @@ function base(data: AppData, a: Stamped, now: string): AppData {
       return { ...data, goals: data.goals.filter((g) => g.id !== a.id) };
 
     case 'movement/add': {
-      const m = a.movement;
+      let m = a.movement;
       if (m.amount <= 0) throw new ActionError('Le montant doit être supérieur à zéro.');
+      // Versement sans objectif précis : il va dans l'enveloppe « Épargne libre », créée au besoin.
+      if (!m.goalId) {
+        if (m.type !== 'versement') throw new ActionError('Choisis l’objectif concerné.');
+        if (!data.goals.some((g) => g.id === FREE_GOAL_ID)) {
+          data = { ...data, goals: [...data.goals, { id: FREE_GOAL_ID, name: 'Épargne libre', icon: '🪙', target: 0, paused: false, createdAt: now, updatedAt: now }] };
+        }
+        m = { ...m, goalId: FREE_GOAL_ID };
+      }
       if (!data.goals.some((g) => g.id === m.goalId)) throw new ActionError('Objectif introuvable.');
       if (m.type === 'transfert' && (!m.toGoalId || m.toGoalId === m.goalId || !data.goals.some((g) => g.id === m.toGoalId))) {
         throw new ActionError('Choisis un objectif de destination différent.');

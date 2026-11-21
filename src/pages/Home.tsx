@@ -8,6 +8,7 @@ import { Progress } from '../ui/components';
 import { Fox, type FoxMood } from '../ui/Fox';
 import { go } from '../ui/router';
 import { useSheets } from '../ui/sheets';
+import { Icon } from '../ui/Icon';
 
 export function CalcExplain({ s }: { s: MonthSummary }) {
   const { money } = useStore();
@@ -173,15 +174,15 @@ export function Home() {
 
       <div className="quick-actions">
         <button type="button" className="btn btn-primary" onClick={() => open({ kind: 'expense' })}>
-          <span aria-hidden>🪙</span>
+          <Icon name="card" size={26} />
           <span>Dépense</span>
         </button>
         <button type="button" className="btn" onClick={() => open({ kind: 'income' })}>
-          <span aria-hidden>💧</span>
+          <Icon name="arrow-down-circle" size={26} />
           <span>Revenu</span>
         </button>
         <button type="button" className="btn" onClick={() => open({ kind: 'movement' })}>
-          <span aria-hidden>🧰</span>
+          <Icon name="chest" size={26} />
           <span>Épargne</span>
         </button>
       </div>

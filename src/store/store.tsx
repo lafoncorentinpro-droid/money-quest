@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { currentPeriod } from '../domain/finance';
 import { levelFromXp, totalXp } from '../domain/game';
 import { formatCents } from '../domain/money';
-import { todayISO } from '../domain/dates';
+import { periodRange, todayISO } from '../domain/dates';
 import type { AppData, PeriodKey } from '../domain/types';
 import { loadData, markLoaded, requestPersistence, saveData } from './db';
 import { ActionError, reduce, type Action } from './reducer';
@@ -17,6 +17,11 @@ interface StoreValue {
   data: AppData;
   today: string;
   period: PeriodKey;
+  /** Mois sélectionné, partagé par Revenus, Dépenses, Épargne et Bilan. */
+  month: PeriodKey;
+  setMonth: (p: PeriodKey) => void;
+  /** Date par défaut d’une nouvelle opération dans le mois sélectionné. */
+  defaultDate: string;
   /** Exécute une action ; renvoie false (avec message) si elle est refusée. */
   dispatch: (a: Action) => boolean;
   toast: (text: string, tone?: Toast['tone']) => void;
@@ -42,6 +47,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [levelUp, setLevelUp] = useState<number>();
   const [today, setToday] = useState(todayISO());
+  const [month, setMonthState] = useState<PeriodKey | null>(() => {
+    try {
+      return sessionStorage.getItem('mq-month');
+    } catch {
+      return null;
+    }
+  });
+  const setMonth = useCallback((p: PeriodKey) => {
+    setMonthState(p);
+    try {
+      sessionStorage.setItem('mq-month', p);
+    } catch {
+      /* stockage indisponible : sans importance */
+    }
+  }, []);
   const dataRef = useRef<AppData | null>(null);
   const timer = useRef<number>();
 
@@ -119,6 +139,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       data,
       today,
       period: currentPeriod(data, today),
+      month: month ?? currentPeriod(data, today),
+      setMonth,
+      defaultDate: (() => {
+        const m = month ?? currentPeriod(data, today);
+        if (m === currentPeriod(data, today)) return today;
+        return periodRange(m, data.settings.monthStartDay).start;
+      })(),
       dispatch,
       toast,
       money: (c: number) => formatCents(c, data.settings.currency),
@@ -127,7 +154,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       levelUp,
       clearLevelUp: () => setLevelUp(undefined)
     };
-  }, [data, today, dispatch, toast, storageMessage, saveError, levelUp]);
+  }, [data, today, month, setMonth, dispatch, toast, storageMessage, saveError, levelUp]);
 
   if (!value) {
     return (

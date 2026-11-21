@@ -3,6 +3,7 @@ import { periodLabel, shiftPeriod } from '../domain/dates';
 import { centsToInput, parseAmount, percent } from '../domain/money';
 import type { PeriodKey } from '../domain/types';
 import { back } from './router';
+import { Icon } from './Icon';
 
 /* ---------- Feuille modale accessible ---------- */
 export function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
@@ -31,7 +32,7 @@ export function Sheet({ title, onClose, children }: { title: string; onClose: ()
         <div className="sheet-head">
           <h2 id={titleId}>{title}</h2>
           <button type="button" className="close-btn" onClick={onClose} aria-label="Fermer">
-            ✕
+            <Icon name="xmark" size={18} />
           </button>
         </div>
         {children}
@@ -159,8 +160,9 @@ export function PageHead({ title, backTo, right }: { title: string; backTo?: str
   return (
     <header className="page-head">
       {backTo !== undefined && (
-        <button type="button" className="back-btn" onClick={() => back(backTo)} aria-label="Retour">
-          ‹
+        <button type="button" className="back-btn" onClick={() => back(backTo)}>
+          <Icon name="chevron-left" size={24} strokeWidth={2.3} />
+          Retour
         </button>
       )}
       <h1>{title}</h1>
@@ -173,7 +175,7 @@ export function PeriodSwitcher({ period, onChange, startDay, max }: { period: Pe
   return (
     <div className="row-between card card-tight">
       <button type="button" className="btn btn-sm btn-ghost" onClick={() => onChange(shiftPeriod(period, -1))} aria-label="Mois précédent">
-        ‹
+        <Icon name="chevron-left" />
       </button>
       <strong style={{ textTransform: 'capitalize', textAlign: 'center' }}>{periodLabel(period, startDay)}</strong>
       <button
@@ -183,7 +185,7 @@ export function PeriodSwitcher({ period, onChange, startDay, max }: { period: Pe
         aria-label="Mois suivant"
         disabled={!!max && period >= max}
       >
-        ›
+        <Icon name="chevron-right" />
       </button>
     </div>
   );

@@ -292,7 +292,7 @@ export function refreshProgress(data: AppData, period: PeriodKey, today: ISODate
   unlock('premier-budget', Object.values(data.budgets).some((b) => b.categories.length > 0 || b.savingsTarget > 0));
   unlock('semaine-suivi', loggingDays(p) >= 7);
   unlock('premier-objectif', data.goals.length > 0);
-  unlock('objectif-atteint', data.goals.some((g) => g.reachedAt || goalBalance(g.id, data.movements) >= g.target));
+  unlock('objectif-atteint', data.goals.some((g) => g.reachedAt || (g.target > 0 && goalBalance(g.id, data.movements) >= g.target)));
   unlock(
     'mois-termine',
     p.bilansViewed.some((b) => periodRange(b, data.settings.monthStartDay).end < today)

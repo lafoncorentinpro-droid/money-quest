@@ -201,6 +201,95 @@ export function dailyAverage(total: Cents, r: DateRange, today: ISODate): Cents 
   return Math.round(total / days);
 }
 
+/* ----- Gestion mensuelle : revenus → dépenses → épargne ----- */
+
+export interface MonthFlow {
+  period: PeriodKey;
+  range: DateRange;
+  /** Revenus attendus sur le mois : reçus + prévus (dont récurrences non confirmées). Hors annulés. */
+  incomesExpected: Cents;
+  incomesReceived: Cents;
+  /** Dépenses du mois hors annulées : payées + prévues (dont récurrences non confirmées). */
+  expensesExpected: Cents;
+  expensesPaid: Cents;
+  expensesPlanned: Cents;
+  savingsDeposits: Cents;
+  savingsWithdrawals: Cents;
+  /** Épargne réalisée = versements − retraits du mois. */
+  savingsNet: number;
+  /**
+   * Reste disponible = revenus réellement reçus − dépenses réellement payées
+   * − sommes transférées vers l'épargne + retraits d'épargne.
+   */
+  resteDisponible: number;
+  /** Report et solde de départ éventuels (explicites), ajoutés à part. */
+  extras: number;
+  savingsTarget: Cents;
+  /** Taux d'épargne en % (épargne réalisée / revenus reçus), null sans revenu reçu. */
+  savingsRate: number | null;
+  stage: 'revenus' | 'depenses' | 'epargne' | 'complet';
+}
+
+export function monthFlow(data: AppData, period: PeriodKey): MonthFlow {
+  const s = monthSummary(data, period);
+  const r = s.range;
+  const incomesExpected =
+    sum(data.incomes.filter((i) => i.status !== 'annule' && inRange(i.date, r)).map((i) => i.amount)) +
+    sum(pendingOccurrences(data, r).filter((p) => p.rec.kind === 'income').map((p) => p.rec.amount));
+  const resteDisponible = s.incomesReceived - s.expensesRealized - s.savingsDeposits + s.savingsWithdrawals;
+  const hasIncome = data.incomes.some((i) => i.status !== 'annule' && inRange(i.date, r)) || incomesExpected > 0;
+  const hasExpense = data.expenses.some((e) => e.status !== 'annulee' && inRange(e.date, r));
+  const hasSaving = data.movements.some((m) => inRange(m.date, r));
+  return {
+    period,
+    range: r,
+    incomesExpected,
+    incomesReceived: s.incomesReceived,
+    expensesExpected: s.expensesRealized + s.expensesPlanned,
+    expensesPaid: s.expensesRealized,
+    expensesPlanned: s.expensesPlanned,
+    savingsDeposits: s.savingsDeposits,
+    savingsWithdrawals: s.savingsWithdrawals,
+    savingsNet: s.savingsNet,
+    resteDisponible,
+    extras: s.carryIn + s.openingBalance,
+    savingsTarget: s.savingsTarget,
+    savingsRate: s.incomesReceived > 0 ? Math.round((s.savingsNet / s.incomesReceived) * 1000) / 10 : null,
+    stage: !hasIncome ? 'revenus' : !hasExpense ? 'depenses' : !hasSaving ? 'epargne' : 'complet'
+  };
+}
+
+export interface IncomeUsage {
+  /** null = dépenses générales du mois (non rattachées). */
+  incomeId: ID | null;
+  amount: Cents; // montant du revenu (0 pour « général »)
+  paid: Cents; // dépenses payées rattachées (nettes des remboursements)
+  planned: Cents; // dépenses prévues rattachées
+  remaining: number; // revenu − payé (indicatif)
+}
+
+/**
+ * Utilisation de chaque revenu du mois. Chaque dépense est comptée UNE seule fois :
+ * soit dans son revenu, soit dans « général ». La somme des `paid` = dépenses payées du mois.
+ */
+export function incomeUsage(data: AppData, period: PeriodKey): IncomeUsage[] {
+  const r = periodRange(period, data.settings.monthStartDay);
+  const incomes = data.incomes.filter((i) => i.status !== 'annule' && inRange(i.date, r));
+  const ids = new Set(incomes.map((i) => i.id));
+  const rows = new Map<ID | null, IncomeUsage>();
+  for (const i of incomes) rows.set(i.id, { incomeId: i.id, amount: i.amount, paid: 0, planned: 0, remaining: i.amount });
+  rows.set(null, { incomeId: null, amount: 0, paid: 0, planned: 0, remaining: 0 });
+  for (const e of data.expenses) {
+    if (e.status === 'annulee' || !inRange(e.date, r)) continue;
+    const key = e.incomeId && ids.has(e.incomeId) ? e.incomeId : null;
+    const row = rows.get(key)!;
+    if (e.status === 'realisee') row.paid += netExpense(e);
+    else row.planned += e.amount;
+  }
+  for (const row of rows.values()) row.remaining = row.amount - row.paid;
+  return [...rows.values()];
+}
+
 /* ----- Statistiques ----- */
 
 export interface PeriodPoint {
@@ -259,6 +348,9 @@ export interface Bilan {
   current: MonthSummary;
   previous: MonthSummary;
   topCategories: { categoryId: ID; amount: Cents }[];
+  byCategory: { categoryId: ID; amount: Cents }[];
+  flow: MonthFlow;
+  previousFlow: MonthFlow;
   expensesDelta: number;
   incomesDelta: number;
   positives: string[];
@@ -269,11 +361,11 @@ export function buildBilan(data: AppData, period: PeriodKey, fmt: (c: number) =>
   const current = monthSummary(data, period);
   const previous = monthSummary(data, shiftPeriod(period, -1));
   const byCat = expensesByCategory(data, current.range);
-  const topCategories = Object.entries(byCat)
+  const byCategory = Object.entries(byCat)
     .map(([categoryId, amount]) => ({ categoryId, amount }))
     .filter((x) => x.amount > 0)
-    .sort((a, b) => b.amount - a.amount)
-    .slice(0, 3);
+    .sort((a, b) => b.amount - a.amount);
+  const topCategories = byCategory.slice(0, 3);
   const positives: string[] = [];
   const ideas: string[] = [];
   const name = (id: ID) => data.categories.find((c) => c.id === id)?.name ?? id;
@@ -299,6 +391,9 @@ export function buildBilan(data: AppData, period: PeriodKey, fmt: (c: number) =>
     current,
     previous,
     topCategories,
+    byCategory,
+    flow: monthFlow(data, period),
+    previousFlow: monthFlow(data, shiftPeriod(period, -1)),
     expensesDelta: current.expensesRealized - previous.expensesRealized,
     incomesDelta: current.incomesReceived - previous.incomesReceived,
     positives,

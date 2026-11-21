@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   addDays,
   addMonthsClamped,
@@ -37,14 +37,14 @@ import { useStore } from '../store/store';
 import { AmountField, Confirm, Empty, Field, PageHead, PeriodSwitcher, Progress, StateTag, Switch, useAmount } from '../ui/components';
 import { go } from '../ui/router';
 import { useSheets } from '../ui/sheets';
-import { CalcExplain } from './Home';
 import { buildRows, OpRowView } from './operations';
+import { MonthStrip, StepNav } from './Month';
+import { Icon } from '../ui/Icon';
 
 /* ============================== BUDGET ============================== */
 
 export function BudgetPage() {
-  const { data, period: current } = useStore();
-  const [period, setPeriod] = useState<PeriodKey>(current);
+  const { data, month: period, setMonth: setPeriod } = useStore();
   return (
     <>
       <PeriodSwitcher period={period} onChange={setPeriod} startDay={data.settings.monthStartDay} />
@@ -489,16 +489,16 @@ export function CalendarPage() {
     <>
       <div className="row-between card card-tight">
         <button type="button" className="btn btn-sm btn-ghost" onClick={() => shift(-1)} aria-label="Mois précédent">
-          ‹
+          <Icon name="chevron-left" />
         </button>
         <strong style={{ textTransform: 'capitalize' }}>
           {monthName(ym.m)} {ym.y}
         </strong>
         <button type="button" className="btn btn-sm btn-ghost" onClick={() => shift(1)} aria-label="Mois suivant">
-          ›
+          <Icon name="chevron-right" />
         </button>
       </div>
-      <section className="card" aria-label="Calendrier">
+      <section className="card cal-card" aria-label="Calendrier">
         <div className="cal">
           {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((d, i) => (
             <div key={i} className="cal-wd" aria-hidden>
@@ -795,77 +795,93 @@ export function StatsPage() {
 /* ============================== BILAN ============================== */
 
 export function BilanPage({ period: arg }: { period?: string }) {
-  const { data, period: current, money, dispatch, today } = useStore();
-  const period = arg && isValidPeriod(arg) ? arg : current;
-  const startDay = data.settings.monthStartDay;
+  const { data, month: period, setMonth, money, dispatch, today } = useStore();
+  useEffect(() => {
+    if (arg && isValidPeriod(arg) && arg !== period) setMonth(arg);
+  }, [arg]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     dispatch({ type: 'bilan/view', period });
   }, [period, dispatch]);
+  const startDay = data.settings.monthStartDay;
   const b = buildBilan(data, period, money);
   const s = b.current;
+  const fl = b.flow;
   const cat = new Map(data.categories.map((c) => [c.id, c]));
   const ended = s.range.end < today;
   const delta = (n: number, invert = false) => {
-    if (n === 0) return <span className="tag">= identique</span>;
+    if (n === 0) return <span className="tag">=</span>;
     const up = n > 0;
     const good = invert ? !up : up;
     return <span className={`tag ${good ? 'tag-ok' : ''}`}>{up ? '▲' : '▼'} {money(Math.abs(n))}</span>;
   };
+  const line = (label: string, value: number, extra?: ReactNode, strong = false) => (
+    <div className="row-between">
+      <span>{label}</span>
+      <span className="row" style={{ gap: 6 }}>
+        {strong ? <strong className={`num ${value < 0 ? 'neg' : ''}`}>{money(value)}</strong> : <span className="num">{money(value)}</span>}
+        {extra}
+      </span>
+    </div>
+  );
 
   return (
     <div className="page">
-      <PageHead title="Bilan" backTo="argent" />
-      <div className="row-between card card-tight">
-        <button type="button" className="btn btn-sm btn-ghost" onClick={() => go(`argent/bilan/${shiftPeriod(period, -1)}`)} aria-label="Mois précédent">
-          ‹
-        </button>
-        <strong style={{ textTransform: 'capitalize' }}>{periodLabel(period, startDay)}</strong>
-        <button type="button" className="btn btn-sm btn-ghost" onClick={() => go(`argent/bilan/${shiftPeriod(period, 1)}`)} aria-label="Mois suivant" disabled={period >= current}>
-          ›
-        </button>
-      </div>
-      {!ended && <div className="notice notice-info small">Ce mois n’est pas terminé : le bilan évoluera encore.</div>}
+      <header className="page-head">
+        <h1>Mon argent</h1>
+      </header>
+      <MonthStrip />
+      <StepNav active="bilan" />
+      {!ended && <div className="notice notice-info small">Ce mois n’est pas encore terminé : le bilan évoluera.</div>}
 
-      <section className="card stack">
-        <div className="row-between">
-          <span>Revenus reçus</span>
-          <span className="row">
-            <strong className="num">{money(s.incomesReceived)}</strong>
-            {delta(b.incomesDelta)}
-          </span>
+      <section className="card stack" aria-labelledby="bl-real">
+        <h2 id="bl-real">Réel</h2>
+        {line('Revenus reçus', fl.incomesReceived, delta(b.incomesDelta))}
+        {line('Dépenses payées', fl.expensesPaid, delta(b.expensesDelta, true))}
+        {line('Épargne réalisée', fl.savingsNet, delta(fl.savingsNet - b.previousFlow.savingsNet))}
+        <div className="calc-lines">
+          <div className="row-between total">
+            <strong>Reste disponible</strong>
+            <strong className={`num ${fl.resteDisponible < 0 ? 'neg' : ''}`}>{money(fl.resteDisponible)}</strong>
+          </div>
         </div>
         <div className="row-between">
-          <span>Dépenses réalisées</span>
-          <span className="row">
-            <strong className="num">{money(s.expensesRealized)}</strong>
-            {delta(b.expensesDelta, true)}
-          </span>
-        </div>
-        <div className="row-between">
-          <span>Transferts d’épargne</span>
-          <strong className="num">{money(s.savingsNet)}</strong>
-        </div>
-        <div className="row-between">
-          <span>Disponible estimé</span>
-          <strong className={`num ${s.available < 0 ? 'neg' : ''}`}>{money(s.available)}</strong>
+          <span>Taux d’épargne</span>
+          <strong>{fl.savingsRate === null ? '—' : `${fl.savingsRate.toLocaleString('fr-FR')} %`}</strong>
         </div>
         <p className="tiny" style={{ margin: 0 }}>
-          Flèches : comparaison avec {periodLabel(shiftPeriod(period, -1), startDay)}.
+          Reste disponible = revenus reçus − dépenses payées − versements d’épargne + retraits. Taux d’épargne = épargne réalisée ÷ revenus reçus. Flèches : comparaison avec{' '}
+          {periodLabel(shiftPeriod(period, -1), startDay)}.
         </p>
-        <CalcExplain s={s} />
       </section>
 
-      <section className="card stack">
-        <h2>Catégories les plus dépensières</h2>
-        {b.topCategories.length === 0 ? (
-          <p className="small muted">Aucune dépense ce mois-ci.</p>
+      <section className="card stack" aria-labelledby="bl-plan">
+        <h2 id="bl-plan">Prévisionnel</h2>
+        {line('Revenus prévus (total)', fl.incomesExpected)}
+        {line('Dépenses prévues (total)', fl.expensesExpected)}
+        {line('dont encore à payer', fl.expensesPlanned)}
+        {fl.savingsTarget > 0 && line('Objectif d’épargne', fl.savingsTarget, <span className="tag">{percent(fl.savingsNet, fl.savingsTarget)} %</span>)}
+        <p className="tiny" style={{ margin: 0 }}>
+          Les montants prévus sont des estimations : ils ne comptent dans le réel qu’une fois reçus ou payés.
+        </p>
+      </section>
+
+      <section className="card stack" aria-labelledby="bl-cat">
+        <h2 id="bl-cat">Répartition des dépenses</h2>
+        {b.byCategory.length === 0 ? (
+          <p className="small muted">Aucune dépense payée ce mois-ci.</p>
         ) : (
-          b.topCategories.map((c, i) => (
-            <div key={c.categoryId} className="row-between">
-              <span>
-                {['🥇', '🥈', '🥉'][i]} {cat.get(c.categoryId)?.icon} {cat.get(c.categoryId)?.name}
-              </span>
-              <span className="num">{money(c.amount)}</span>
+          b.byCategory.map((c, i) => (
+            <div key={c.categoryId} className="stack" style={{ gap: 4 }}>
+              <div className="row-between small">
+                <span>
+                  {i < 3 ? ['🥇', '🥈', '🥉'][i] + ' ' : ''}
+                  {cat.get(c.categoryId)?.icon} {cat.get(c.categoryId)?.name}
+                </span>
+                <span className="num">
+                  {money(c.amount)} · {percent(c.amount, fl.expensesPaid)} %
+                </span>
+              </div>
+              <Progress value={c.amount} max={fl.expensesPaid} label={cat.get(c.categoryId)?.name ?? ''} />
             </div>
           ))
         )}

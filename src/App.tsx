@@ -10,6 +10,7 @@ import { useStore } from './store/store';
 import { Fox } from './ui/Fox';
 import { go, useRoute } from './ui/router';
 import { SheetsProvider, useSheets } from './ui/sheets';
+import { Icon } from './ui/Icon';
 
 const TABS = [
   { id: 'accueil', label: 'Accueil', icon: <path d="M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" /> },
@@ -169,7 +170,7 @@ function Shell() {
         <div key={tab + (sub ?? '')}>{page}</div>
       </main>
       <button type="button" className="fab" aria-label="Ajouter une opération" onClick={() => open({ kind: 'quick' })}>
-        +
+        <Icon name="plus" size={30} strokeWidth={2.4} />
       </button>
       <TabBar current={tab ?? 'accueil'} />
       {celebration && data.settings.animations && <Celebrate c={celebration} onClose={next} />}

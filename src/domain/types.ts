@@ -10,7 +10,7 @@ export type Cents = number;
 export type ISODate = string; // 'AAAA-MM-JJ'
 export type PeriodKey = string; // 'AAAA-MM' : mois budgétaire commençant au jour `monthStartDay`
 
-export type IncomeType = 'salaire' | 'prime' | 'remboursement' | 'autre';
+export type IncomeType = 'salaire' | 'prime' | 'aide' | 'activite' | 'remboursement' | 'autre';
 export type IncomeStatus = 'recu' | 'prevu' | 'annule';
 
 export interface Income {
@@ -49,6 +49,11 @@ export interface Expense {
   status: ExpenseStatus;
   note?: string;
   refunds: Refund[];
+  /**
+   * Revenu du même mois auquel la dépense est rattachée (suivi uniquement).
+   * Absent = « dépense générale du mois ». N'influence jamais les totaux.
+   */
+  incomeId?: ID;
   recurringId?: ID;
   occurrenceDate?: ISODate;
   createdAt: string;

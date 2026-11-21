@@ -1,5 +1,5 @@
 import { DEFAULT_ACTIVE_MISSIONS, DEFAULT_XP_RULES } from './game';
-import type { AppData, Category } from './types';
+import type { AppData, Category, IncomeType } from './types';
 
 export const SCHEMA_VERSION = 1;
 
@@ -30,7 +30,14 @@ export const GOAL_TEMPLATES = [
   { name: 'Objectif libre', icon: '⭐' }
 ];
 
-export const INCOME_TYPE_LABEL = { salaire: 'Salaire', prime: 'Prime', remboursement: 'Remboursement reçu', autre: 'Autre revenu' } as const;
+export const INCOME_TYPE_LABEL: Record<IncomeType, string> = {
+  salaire: 'Salaire',
+  prime: 'Prime',
+  aide: 'Aide',
+  activite: 'Activité secondaire',
+  remboursement: 'Remboursement reçu',
+  autre: 'Autre revenu'
+};
 
 /** Données initiales : vides. Aucune transaction ni solde fictif. */
 export function initialData(nowIso = new Date().toISOString()): AppData {
