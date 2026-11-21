@@ -6,6 +6,7 @@ import { Empty, PageHead, PeriodSwitcher } from '../ui/components';
 import { Icon } from '../ui/Icon';
 import { useSheets } from '../ui/sheets';
 import { ChartsPage } from './Charts';
+import { EnvHistory } from './EnvHistory';
 import { buildRows, OpRowView } from './operations';
 import { ExpensesStep, IncomesStep, MonthOverview } from './Month';
 
@@ -14,6 +15,7 @@ const TOOLS: Record<string, string> = {
 };
 
 export function Money({ sub }: { sub?: string; arg?: string }) {
+  if (!sub) return <EnvHistory />;
   if (sub === 'bilan') return <ChartsPage />;
   if (sub && TOOLS[sub]) {
     return (

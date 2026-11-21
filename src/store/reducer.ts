@@ -1,12 +1,15 @@
 import { periodOf } from '../domain/dates';
 import { initialData } from '../domain/defaults';
 import { goalBalance } from '../domain/finance';
+import { balance, envelopeExists, LASER } from '../domain/envelopes';
 import { award, refreshProgress, uid } from '../domain/game';
 import type {
   AppData,
   AppSettings,
   Budget,
   Category,
+  EnvelopeMonth,
+  EnvelopeTx,
   Equipment,
   Expense,
   ID,
@@ -57,6 +60,10 @@ export type Action =
   | { type: 'challenge/clear' }
   | { type: 'settings/update'; settings: Partial<AppSettings> }
   | { type: 'equip'; equipped: Equipment }
+  | { type: 'env/month/save'; month: Omit<EnvelopeMonth, 'createdAt' | 'updatedAt'> }
+  | { type: 'env/tx/add'; tx: Omit<EnvelopeTx, 'id' | 'createdAt'> }
+  | { type: 'env/tx/delete'; id: ID }
+  | { type: 'env/laser/target'; amount: number }
   | { type: 'data/replace'; data: AppData }
   | { type: 'data/reset' };
 
@@ -263,6 +270,31 @@ function base(data: AppData, a: Stamped, now: string): AppData {
     case 'equip':
       return { ...data, progress: { ...data.progress, equipped: a.equipped } };
 
+    case 'env/month/save': {
+      const m = a.month;
+      const bad = (n: number) => !Number.isInteger(n) || n < 0;
+      if (bad(m.salary) || bad(m.savings) || bad(m.weekly) || m.fixed.some((x) => bad(x.amount))) throw new ActionError('Les montants doivent être positifs.');
+      if (m.fixed.some((x) => !x.name.trim())) throw new ActionError('Chaque dépense fixe a besoin d’un nom.');
+      const prev = data.envelopes.months[m.period];
+      const month: EnvelopeMonth = { ...m, fixed: m.fixed.map((x) => ({ ...x, name: x.name.trim() })), createdAt: prev?.createdAt ?? now, updatedAt: now };
+      return { ...data, envelopes: { ...data.envelopes, months: { ...data.envelopes.months, [m.period]: month } } };
+    }
+    case 'env/tx/add': {
+      const t = a.tx;
+      if (!Number.isInteger(t.amount) || t.amount <= 0) throw new ActionError('Le montant doit être supérieur à zéro.');
+      if (!t.from && !t.to) throw new ActionError('Choisis une enveloppe.');
+      for (const k of [t.from, t.to]) if (k && !envelopeExists(data.envelopes, k)) throw new ActionError('Enveloppe introuvable : crée d’abord le mois.');
+      if (t.kind === 'transfert' && (!t.from || !t.to || t.from === t.to)) throw new ActionError('Choisis deux enveloppes différentes.');
+      if (t.kind === 'seance' && t.from !== LASER) throw new ActionError('La séance se règle depuis l’enveloppe laser.');
+      if (t.kind === 'seance' && t.amount > balance(data.envelopes, LASER)) throw new ActionError('Montant supérieur à l’enveloppe laser.');
+      const tx: EnvelopeTx = { ...t, note: t.note?.trim() || undefined, id: uid(), createdAt: now };
+      return { ...data, envelopes: { ...data.envelopes, tx: [...data.envelopes.tx, tx] } };
+    }
+    case 'env/tx/delete':
+      return { ...data, envelopes: { ...data.envelopes, tx: data.envelopes.tx.filter((t) => t.id !== a.id) } };
+    case 'env/laser/target':
+      if (!Number.isInteger(a.amount) || a.amount <= 0) throw new ActionError('L’objectif doit être supérieur à zéro.');
+      return { ...data, envelopes: { ...data.envelopes, laserTarget: a.amount } };
     case 'data/replace':
       return a.data;
     case 'data/reset':

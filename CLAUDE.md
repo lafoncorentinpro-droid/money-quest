@@ -31,6 +31,7 @@ URL : https://lafoncorentinpro-droid.github.io/money-quest/ — l'app installée
 ```
 src/domain/   logique PURE et testée — aucune UI
   types.ts      modèles (montants = centimes entiers, dates 'AAAA-MM-JJ', mois 'AAAA-MM')
+  envelopes.ts  MÉTHODE DES ENVELOPPES (accueil) : salaire − fixes − épargne − 4 semaines = achats divers ; laser ; transferts
   finance.ts    TOUS les calculs : monthSummary, monthFlow (mois), incomeUsage, rangeStats, buildBilan, simulateur
   recurring.ts  échéances calculées à la volée, anti-doublon (recurringId + occurrenceDate)
   game.ts       XP / niveaux / régions / missions / badges / cosmétiques (refreshProgress)
@@ -64,3 +65,8 @@ Routes : `#/accueil`, `#/monde`, `#/argent[/revenus|depenses|epargne|bilan|budge
 - Dates : `<input type="date" className="input">` (sélecteur natif iOS). Listes : `<select className="input">`.
 - Textes UI en français, bienveillants ; les chiffres affichés passent par `money()` du store.
 - Toute nouvelle règle de calcul → test dans `tests/`.
+
+## Méthode des enveloppes (depuis le 21/11/2026)
+- Accueil = src/pages/Envelopes.tsx, onglet Historique = src/pages/EnvHistory.tsx, formulaires = src/forms/envForms.tsx, bouton + = dépense rapide.
+- Données : data.envelopes (months, tx, laserTarget). Soldes = initial + entrées − sorties ; transferts neutres ; aucun report automatique entre mois.
+- Ancienne version conservée : tag git  (retour possible si l'utilisateur préfère).

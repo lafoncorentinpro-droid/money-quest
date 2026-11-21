@@ -206,6 +206,7 @@ export interface AppData {
   movements: SavingsMovement[];
   progress: UserProgress;
   settings: AppSettings;
+  envelopes: EnvelopeData;
   createdAt: string;
 }
 
@@ -241,3 +242,47 @@ export interface CosmeticItem {
 }
 
 export type MascotId = 'chat' | 'loutre' | 'lion' | 'renard';
+
+/* ----- Méthode des enveloppes (voir src/domain/envelopes.ts) ----- */
+
+/** Clé d'enveloppe : 'laser' et 'epargne' (permanentes), ou `${mois}:w1`…`${mois}:w4`, `${mois}:divers`. */
+export type EnvelopeKey = string;
+
+export interface FixedCharge {
+  id: ID;
+  name: string;
+  amount: Cents;
+}
+
+/** Plan d'un mois : salaire, dépenses fixes, épargne et budget hebdomadaire. */
+export interface EnvelopeMonth {
+  period: PeriodKey;
+  salary: Cents;
+  fixed: FixedCharge[];
+  savings: Cents;
+  weekly: Cents;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Mouvement d'enveloppe. `amount` toujours positif.
+ * depense : sort de `from` · ajout : entre dans `to` · transfert : `from` → `to` (neutre)
+ * correction : ajustement manuel (from OU to) · seance : vide l'enveloppe laser (séance payée).
+ */
+export interface EnvelopeTx {
+  id: ID;
+  date: ISODate;
+  kind: 'depense' | 'ajout' | 'transfert' | 'correction' | 'seance';
+  from?: EnvelopeKey;
+  to?: EnvelopeKey;
+  amount: Cents;
+  note?: string;
+  createdAt: string;
+}
+
+export interface EnvelopeData {
+  months: Record<PeriodKey, EnvelopeMonth>;
+  tx: EnvelopeTx[];
+  laserTarget: Cents;
+}

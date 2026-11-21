@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { goalBalance } from './domain/finance';
 import { ChartsPage } from './pages/Charts';
-import { Home } from './pages/Home';
+import { EnvelopesHome } from './pages/Envelopes';
 import { Money } from './pages/Money';
 import { Profile } from './pages/Profile';
 import { useStore } from './store/store';
@@ -15,7 +15,7 @@ const TABS = [
   { id: 'accueil', label: 'Accueil', icon: <path d="M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" /> },
   {
     id: 'argent',
-    label: 'Mon Argent',
+    label: 'Historique',
     icon: (
       <>
         <rect x="3" y="6" width="18" height="13" rx="3" />
@@ -151,7 +151,7 @@ function Shell() {
       page = <Profile />;
       break;
     default:
-      page = <Home />;
+      page = <EnvelopesHome />;
   }
 
   return (
@@ -167,7 +167,7 @@ function Shell() {
           {page}
         </div>
       </main>
-      <TabBar current={tab === 'argent' ? 'argent' : 'accueil'} onAdd={() => open({ kind: 'quick' })} />
+      <TabBar current={tab === 'argent' ? 'argent' : 'accueil'} onAdd={() => open({ kind: 'env-quick' })} />
       {!data.settings.mascot && <MascotPicker />}
       <Splash animations={data.settings.animations} mascot={data.settings.mascot} />
       {celebration && data.settings.animations && <Celebrate c={celebration} onClose={next} />}

@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
 import { CategoryForm, ConfirmOccurrenceForm, ExpenseForm, GoalForm, IncomeForm, MovementForm, RecurringForm } from '../forms/forms';
-import type { Expense, MovementType, RecurringTransaction } from '../domain/types';
+import type { EnvelopeKey, Expense, MovementType, PeriodKey, RecurringTransaction } from '../domain/types';
+import { EnvForm, EnvMonthForm, EnvQuickForm, EnvTransferForm } from '../forms/envForms';
 import { useStore } from '../store/store';
 import { Sheet } from './components';
 import { Icon } from './Icon';
@@ -16,7 +17,11 @@ export type SheetSpec =
   | { kind: 'occurrence'; rec: RecurringTransaction; date: string }
   | { kind: 'goal'; id?: string }
   | { kind: 'movement'; goalId?: string; type?: MovementType }
-  | { kind: 'category' };
+  | { kind: 'category' }
+  | { kind: 'env-month'; period: PeriodKey }
+  | { kind: 'env'; key: EnvelopeKey }
+  | { kind: 'env-transfer'; from?: EnvelopeKey }
+  | { kind: 'env-quick' };
 
 const Ctx = createContext<(s: SheetSpec) => void>(() => undefined);
 export const useSheets = () => useContext(Ctx);
@@ -33,8 +38,16 @@ export function SheetsProvider({ children }: { children: ReactNode }) {
 }
 
 function SheetRenderer({ spec, close, open }: { spec: SheetSpec; close: () => void; open: (s: SheetSpec) => void }) {
-  const { data } = useStore();
+  const { data, month } = useStore();
   switch (spec.kind) {
+    case 'env-month':
+      return <EnvMonthForm period={spec.period} onClose={close} />;
+    case 'env':
+      return <EnvForm envKey={spec.key} onClose={close} onTransfer={() => open({ kind: 'env-transfer', from: spec.key })} />;
+    case 'env-transfer':
+      return <EnvTransferForm from={spec.from} onClose={close} />;
+    case 'env-quick':
+      return <EnvQuickForm onClose={close} onCreate={() => open({ kind: 'env-month', period: month })} />;
     case 'quick':
       return (
         <Sheet title="Ajouter" subtitle="Qu’est-ce que tu veux noter ?" onClose={close}>

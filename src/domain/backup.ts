@@ -45,7 +45,9 @@ const MIGRATIONS: Record<number, (d: Record<string, unknown>) => Record<string, 
     return { ...d, settings: { ...st, monthStartDay: 1, theme: st.theme === 'auto' || st.theme === undefined ? 'clair' : st.theme } };
   },
   // 2 -> 3 : ajout du compagnon (absent = choix au prochain lancement), rien à convertir
-  2: (d) => d
+  2: (d) => d,
+  // 3 -> 4 : méthode des enveloppes (vide au départ)
+  3: (d) => ({ ...d, envelopes: (d.envelopes as object) ?? { months: {}, tx: [], laserTarget: 13700 } })
 };
 
 export function migrate(raw: Record<string, unknown>): Record<string, unknown> {

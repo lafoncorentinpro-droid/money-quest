@@ -223,26 +223,33 @@ export function StateTag({ state }: { state: 'ok' | 'proche' | 'depasse' }) {
 /** Fait défiler un montant affiché jusqu'à sa valeur (affichage seulement, voir ANIMATIONS.md § 4). */
 export function useCountUp(target: number, duration = 700): number {
   const [value, setValue] = useState(target);
-  const from = useRef(0);
+  const shown = useRef(0); // dernière valeur affichée : point de départ de l'animation suivante
   useEffect(() => {
+    const show = (v: number) => {
+      shown.current = v;
+      setValue(v);
+    };
     const reduced = document.body.classList.contains('no-anim') || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    if (reduced || from.current === target) {
-      setValue(target);
-      from.current = target;
+    if (reduced || shown.current === target) {
+      show(target);
       return;
     }
     const start = performance.now();
-    const a = from.current;
+    const a = shown.current;
     let raf = 0;
     const step = (t: number) => {
       const k = Math.min(1, (t - start) / duration);
       const e = 1 - Math.pow(1 - k, 3);
-      setValue(Math.round(a + (target - a) * e));
+      show(Math.round(a + (target - a) * e));
       if (k < 1) raf = requestAnimationFrame(step);
-      else from.current = target;
     };
     raf = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(raf);
+    // Filet de sécurité : la vraie valeur s'affiche toujours, même si l'animation ne tourne pas.
+    const done = setTimeout(() => show(target), duration + 80);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(done);
+    };
   }, [target, duration]);
   return value;
 }
