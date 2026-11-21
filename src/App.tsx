@@ -27,8 +27,7 @@ const TABS = [
 
 /** Barre du bas : Accueil · bouton + au centre · Mon Argent (maquettes). */
 function TabBar({ current, onAdd }: { current: string; onAdd: () => void }) {
-  const idx = Math.max(0, TABS.findIndex((t) => t.id === current));
-  const tab = (t: (typeof TABS)[number]) => (
+  const tab =(t: (typeof TABS)[number]) => (
     <a key={t.id} href={`#/${t.id}`} className="tab" aria-current={current === t.id ? 'page' : undefined}>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
         {t.icon}
@@ -39,7 +38,6 @@ function TabBar({ current, onAdd }: { current: string; onAdd: () => void }) {
   return (
     <nav className="tabbar" aria-label="Navigation principale">
       <div className="tabbar-inner">
-        <span className="tab-indicator" style={{ transform: `translateX(${idx * 200}%)` }} aria-hidden />
         {tab(TABS[0])}
         <div className="tab-center">
           <button type="button" className="fab" aria-label="Ajouter une opération" onClick={onAdd}>
