@@ -69,4 +69,4 @@ Routes : `#/accueil`, `#/monde`, `#/argent[/revenus|depenses|epargne|bilan|budge
 ## Méthode des enveloppes (depuis le 21/11/2026)
 - Accueil = src/pages/Envelopes.tsx, onglet Historique = src/pages/EnvHistory.tsx, formulaires = src/forms/envForms.tsx, bouton + = dépense rapide.
 - Données : data.envelopes (months, tx, laserTarget). Soldes = initial + entrées − sorties ; transferts neutres ; aucun report automatique entre mois.
-- Ancienne version conservée : tag git  (retour possible si l'utilisateur préfère).
+- Ancienne version conservée : tag git `version-avant-enveloppes` (retour possible si l'utilisateur préfère).
