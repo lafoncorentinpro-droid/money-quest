@@ -1027,11 +1027,7 @@ export function SimulatorPage() {
                 </select>
               </Field>
             ) : (
-              <Empty icon="🗺️" title="Aucun objectif">
-                <button type="button" className="btn btn-sm btn-primary" onClick={() => go('tresors/nouveau')}>
-                  Créer un objectif
-                </button>
-              </Empty>
+              <Empty icon="🗺️" title="Aucun objectif" />
             )
           ) : (
             <div className="grid-2">

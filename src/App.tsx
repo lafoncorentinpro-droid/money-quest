@@ -1,11 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { goalBalance } from './domain/finance';
-import { COSMETICS, REGIONS } from './domain/game';
 import { Home } from './pages/Home';
 import { Money } from './pages/Money';
 import { Profile } from './pages/Profile';
-import { Treasures } from './pages/Treasures';
-import { World } from './pages/World';
 import { useStore } from './store/store';
 import { Fox } from './ui/Fox';
 import { go, useRoute } from './ui/router';
@@ -14,7 +11,6 @@ import { Icon } from './ui/Icon';
 
 const TABS = [
   { id: 'accueil', label: 'Accueil', icon: <path d="M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" /> },
-  { id: 'monde', label: 'Monde', icon: <path d="M9 4 3 6.5v13L9 17l6 2.5 6-2.5v-13L15 6.5 9 4zm0 0v13m6-10.5v13" /> },
   {
     id: 'argent',
     label: 'Mon Argent',
@@ -25,26 +21,6 @@ const TABS = [
       </>
     )
   },
-  {
-    id: 'tresors',
-    label: 'Trésors',
-    icon: (
-      <>
-        <path d="M4 10h16v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z" />
-        <path d="M4 10a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4M11 13h2v3h-2z" />
-      </>
-    )
-  },
-  {
-    id: 'profil',
-    label: 'Profil',
-    icon: (
-      <>
-        <circle cx="12" cy="8.5" r="3.8" />
-        <path d="M4.5 20c1.2-3.6 4-5.3 7.5-5.3s6.3 1.7 7.5 5.3" />
-      </>
-    )
-  }
 ];
 
 function TabBar({ current }: { current: string }) {
@@ -94,18 +70,9 @@ function Celebrate({ c, onClose }: { c: Celebration; onClose: () => void }) {
 
 /** Détecte niveaux et objectifs atteints pour une célébration douce (désactivable via les animations). */
 function useCelebrations(): [Celebration | null, () => void] {
-  const { data, levelUp, clearLevelUp } = useStore();
+  const { data } = useStore();
   const [queue, setQueue] = useState<Celebration[]>([]);
   const reached = useRef<Set<string> | null>(null);
-
-  useEffect(() => {
-    if (!levelUp) return;
-    const region = REGIONS.find((r) => r.minLevel === levelUp);
-    const items = COSMETICS.filter((c) => c.level === levelUp).map((c) => c.name);
-    const extra = [region ? `Nouvelle région découverte : ${region.name} !` : '', items.length ? `Débloqué : ${items.join(', ')}.` : ''].filter(Boolean).join(' ');
-    setQueue((q) => [...q, { title: `Niveau ${levelUp} !`, text: extra || 'Tes bonnes habitudes portent leurs fruits.' }]);
-    clearLevelUp();
-  }, [levelUp, clearLevelUp]);
 
   useEffect(() => {
     const now = new Set(data.goals.filter((g) => g.target > 0 && goalBalance(g.id, data.movements) >= g.target).map((g) => g.id));
@@ -113,7 +80,7 @@ function useCelebrations(): [Celebration | null, () => void] {
       for (const id of now) {
         if (!reached.current.has(id)) {
           const g = data.goals.find((x) => x.id === id)!;
-          setQueue((q) => [...q, { title: 'Trésor rempli !', text: `Ton objectif « ${g.name} » est atteint. Bravo pour ta régularité !` }]);
+          setQueue((q) => [...q, { title: 'Objectif atteint !', text: `Ton objectif « ${g.name} » est atteint. Bravo pour ta régularité !` }]);
         }
       }
     }
@@ -137,21 +104,15 @@ function Shell() {
   }, [data.settings.theme, data.settings.animations]);
 
   useEffect(() => {
-    if (!TABS.some((t) => t.id === tab)) go('accueil');
+    if (!TABS.some((t) => t.id === tab) && tab !== 'reglages') go('accueil');
   }, [tab]);
 
   let page;
   switch (tab) {
-    case 'monde':
-      page = <World />;
-      break;
     case 'argent':
       page = <Money sub={sub} arg={arg} />;
       break;
-    case 'tresors':
-      page = <Treasures id={sub} />;
-      break;
-    case 'profil':
+    case 'reglages':
       page = <Profile />;
       break;
     default:

@@ -1,13 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { makeBackup, parseBackup, toCSV, type ValidationResult } from '../domain/backup';
 import { formatDateShort, periodLabel } from '../domain/dates';
-import { ACHIEVEMENTS, COSMETICS, DEFAULT_XP_RULES, levelProgress, MISSIONS, totalXp, XP_RULE_INFO } from '../domain/game';
 import { centsToInput, parseAmount } from '../domain/money';
-import type { AppData, Equipment, Theme, XpRule } from '../domain/types';
+import type { AppData, Theme } from '../domain/types';
 import { requestPersistence } from '../store/db';
 import { useStore } from '../store/store';
-import { Confirm, Field, PageHead, Progress, Sheet, Switch } from '../ui/components';
-import { Fox } from '../ui/Fox';
+import { Confirm, Field, PageHead, Sheet, Switch } from '../ui/components';
 
 const CURRENCIES = [
   ['EUR', 'Euro (€)'],
@@ -44,17 +42,13 @@ async function shareOrDownload(name: string, content: string, type: string) {
 export function Profile() {
   const { data, dispatch, toast, period, today } = useStore();
   const s = data.settings;
-  const xp = totalXp(data.progress);
-  const lp = levelProgress(xp);
   const [nick, setNick] = useState(s.nickname);
   const [opening, setOpening] = useState(s.openingBalance ? (s.openingBalance.amount < 0 ? '-' : '') + centsToInput(s.openingBalance.amount) : '');
   const [importRes, setImportRes] = useState<ValidationResult | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
-  const [showXp, setShowXp] = useState(false);
   const [persisted, setPersisted] = useState<boolean | undefined>();
   const fileRef = useRef<HTMLInputElement>(null);
   const set = (settings: Partial<AppData['settings']>) => dispatch({ type: 'settings/update', settings });
-  const equip = (e: Partial<Equipment>) => dispatch({ type: 'equip', equipped: { ...data.progress.equipped, ...e } });
 
   useEffect(() => {
     navigator.storage?.persisted?.().then(setPersisted).catch(() => undefined);
@@ -103,135 +97,12 @@ export function Profile() {
 
   return (
     <div className="page">
-      <PageHead title="Profil" />
-
-      <section className="card stack center">
-        <div style={{ display: 'grid', placeItems: 'center' }}>
-          <Fox mood="fier" size={120} equipped={data.progress.equipped} animate={s.animations} />
-        </div>
-        <strong style={{ fontSize: 20 }}>{s.nickname || 'Aventurier·e'}</strong>
-        <div className="small muted">
-          Niveau {lp.level} · {xp} XP
-        </div>
-        <Progress value={lp.into} max={lp.needed || 1} tone="xp" label="Progression du niveau" />
-      </section>
+      <PageHead title="Réglages" backTo="accueil" />
 
       <section className="card stack">
         <Field label="Prénom ou pseudo (facultatif)">
           <input className="input" value={nick} maxLength={30} onChange={(e) => setNick(e.target.value)} onBlur={() => nick !== s.nickname && set({ nickname: nick.trim() })} />
         </Field>
-      </section>
-
-      <section className="card stack" aria-labelledby="wardrobe">
-        <h2 id="wardrobe">Garde-robe du renard</h2>
-        <p className="tiny" style={{ margin: 0 }}>
-          Objets purement décoratifs, débloqués avec les niveaux. Jamais d’achat.
-        </p>
-        {(['scarf', 'hat', 'accessory'] as const).map((slot) => (
-          <div key={slot} className="stack" style={{ gap: 6 }}>
-            <h3 className="small muted">{slot === 'scarf' ? 'Écharpes' : slot === 'hat' ? 'Chapeaux' : 'Accessoires'}</h3>
-            <div className="chips" style={{ flexWrap: 'wrap' }}>
-              {slot !== 'scarf' && (
-                <button type="button" className="chip" aria-pressed={!data.progress.equipped[slot]} onClick={() => equip({ [slot]: undefined })}>
-                  Aucun
-                </button>
-              )}
-              {COSMETICS.filter((c) => c.slot === slot).map((c) => {
-                const ok = lp.level >= c.level;
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    className="chip"
-                    disabled={!ok}
-                    aria-pressed={data.progress.equipped[slot] === c.id}
-                    onClick={() => equip({ [slot]: c.id })}
-                    style={{ opacity: ok ? 1 : 0.5 }}
-                  >
-                    {ok ? '' : '🔒 '}
-                    {c.name}
-                    {!ok && <span className="tiny"> niv. {c.level}</span>}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </section>
-
-      <section className="card stack" aria-labelledby="badges">
-        <h2 id="badges">Badges</h2>
-        <div className="badge-grid">
-          {ACHIEVEMENTS.map((a) => {
-            const got = data.progress.achievements[a.id];
-            return (
-              <div key={a.id} className={`badge-item ${got ? '' : 'locked'}`}>
-                <div className="medal" aria-hidden>
-                  {a.icon}
-                </div>
-                <strong>{a.title}</strong>
-                <span className="tiny">{got ? `Obtenu le ${formatDateShort(got)}` : a.description}</span>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="card stack" aria-labelledby="xprules">
-        <div className="row-between">
-          <h2 id="xprules">Règles d’XP</h2>
-          <button type="button" className="link" onClick={() => setShowXp(true)}>
-            Historique
-          </button>
-        </div>
-        <p className="tiny" style={{ margin: 0 }}>
-          L’XP récompense tes habitudes, jamais les montants. Elle ne diminue jamais. Tu peux ajuster les valeurs.
-        </p>
-        {(Object.keys(XP_RULE_INFO) as Exclude<XpRule, 'mission'>[]).map((k) => (
-          <div key={k} className="row">
-            <div className="grow">
-              <div className="small">{XP_RULE_INFO[k].label}</div>
-              <div className="tiny">{XP_RULE_INFO[k].detail}</div>
-            </div>
-            <input
-              className="input num"
-              style={{ width: 76, textAlign: 'right' }}
-              inputMode="numeric"
-              aria-label={`XP pour ${XP_RULE_INFO[k].label}`}
-              value={s.xpRules[k]}
-              onChange={(e) => {
-                const v = Math.max(0, Math.min(200, Number(e.target.value.replace(/\D/g, '')) || 0));
-                set({ xpRules: { ...s.xpRules, [k]: v } });
-              }}
-            />
-          </div>
-        ))}
-        <div className="row">
-          <div className="grow">
-            <div className="small">Missions</div>
-            <div className="tiny">% de la récompense affichée sur chaque mission</div>
-          </div>
-          <input
-            className="input num"
-            style={{ width: 76, textAlign: 'right' }}
-            inputMode="numeric"
-            aria-label="Pourcentage XP missions"
-            value={s.xpRules.mission}
-            onChange={(e) => set({ xpRules: { ...s.xpRules, mission: Math.max(0, Math.min(300, Number(e.target.value.replace(/\D/g, '')) || 0)) } })}
-          />
-        </div>
-        <button type="button" className="btn btn-sm" onClick={() => set({ xpRules: { ...DEFAULT_XP_RULES } })}>
-          Valeurs par défaut
-        </button>
-        <h3 className="small muted">Missions suivies</h3>
-        {MISSIONS.map((m) => (
-          <Switch
-            key={m.id}
-            label={m.title}
-            checked={s.activeMissions.includes(m.id)}
-            onChange={(v) => set({ activeMissions: v ? [...s.activeMissions, m.id] : s.activeMissions.filter((x) => x !== m.id) })}
-          />
-        ))}
       </section>
 
       <section className="card stack" aria-labelledby="prefs">
@@ -416,28 +287,6 @@ export function Profile() {
         />
       )}
 
-      {showXp && (
-        <Sheet title="Historique d’XP" onClose={() => setShowXp(false)}>
-          {data.progress.xpEvents.length === 0 ? (
-            <p className="muted">Aucune XP pour l’instant.</p>
-          ) : (
-            <div className="list">
-              {[...data.progress.xpEvents]
-                .reverse()
-                .slice(0, 100)
-                .map((e) => (
-                  <div key={e.id} className="row-between small" style={{ padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
-                    <span>
-                      {e.label}
-                      <span className="tiny"> · {formatDateShort(e.date)}</span>
-                    </span>
-                    <span className="tag tag-gold">+{e.xp}</span>
-                  </div>
-                ))}
-            </div>
-          )}
-        </Sheet>
-      )}
     </div>
   );
 }

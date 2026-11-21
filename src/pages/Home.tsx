@@ -1,5 +1,5 @@
 import { addDays, formatDateLong, formatDateShort, periodLabel, periodRange } from '../domain/dates';
-import { goalBalance, monthSummary, recentByDay, totalSavings, type MonthSummary } from '../domain/finance';
+import { monthSummary, recentByDay, totalSavings, type MonthSummary } from '../domain/finance';
 import { percent } from '../domain/money';
 import { pendingOccurrences } from '../domain/recurring';
 import { useStore } from '../store/store';
@@ -97,6 +97,9 @@ export function Home() {
           </div>
           <h1 style={{ fontFamily: 'var(--font-title)', margin: 0, fontSize: 26 }}>Mon QG</h1>
         </div>
+        <button type="button" className="icon-btn" onClick={() => go('reglages')} aria-label="Réglages">
+          <Icon name="gear" size={24} />
+        </button>
       </header>
 
       <section className="card stack" aria-labelledby="dispo">
@@ -263,38 +266,6 @@ export function Home() {
         </section>
       )}
 
-      {data.goals.length > 0 && (
-        <section className="card" aria-labelledby="gl">
-          <div className="card-head">
-            <h2 id="gl">Mes trésors</h2>
-            <button type="button" className="link" onClick={() => go('tresors')}>
-              Voir
-            </button>
-          </div>
-          <div className="stack">
-            {data.goals
-              .filter((g) => !g.paused)
-              .slice(0, 3)
-              .map((g) => {
-                const bal = goalBalance(g.id, data.movements);
-                return (
-                  <button key={g.id} type="button" className="list-row" style={{ border: 'none', padding: 0, minHeight: 0 }} onClick={() => go(`tresors/${g.id}`)}>
-                    <span className="icon-bubble" aria-hidden>
-                      {g.icon}
-                    </span>
-                    <div className="grow stack" style={{ gap: 4 }}>
-                      <div className="row-between small">
-                        <span className="ellipsis">{g.name}</span>
-                        <span className="num muted">{percent(bal, g.target)} %</span>
-                      </div>
-                      <Progress value={bal} max={g.target} tone={bal >= g.target ? 'ok' : undefined} label={`Progression ${g.name}`} />
-                    </div>
-                  </button>
-                );
-              })}
-          </div>
-        </section>
-      )}
     </div>
   );
 }

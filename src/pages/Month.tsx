@@ -618,9 +618,6 @@ export function SavingsStep() {
       <section className="card" aria-label="Mouvements du mois">
         <div className="card-head">
           <h2>Mouvements du mois</h2>
-          <button type="button" className="link" onClick={() => go('tresors')}>
-            Mes objectifs
-          </button>
         </div>
         {movements.length === 0 ? (
           <p className="small muted">Aucun mouvement ce mois-ci.</p>
@@ -630,7 +627,7 @@ export function SavingsStep() {
               const g = goalName(m.goalId);
               const inward = m.type === 'versement';
               return (
-                <button key={m.id} type="button" className="list-row" onClick={() => go(`tresors/${m.goalId}`)}>
+                <div key={m.id} className="list-row">
                   <span className="icon-bubble" aria-hidden>
                     {g?.icon ?? '🪙'}
                   </span>
@@ -644,7 +641,7 @@ export function SavingsStep() {
                     {m.type === 'transfert' ? '⇄ ' : inward ? '+' : '−'}
                     {money(m.amount)}
                   </span>
-                </button>
+                </div>
               );
             })}
           </div>
