@@ -6,7 +6,8 @@ import { pendingOccurrences } from '../domain/recurring';
 import type { PeriodKey } from '../domain/types';
 import { useStore } from '../store/store';
 import { Empty, Progress } from '../ui/components';
-import { Fox } from '../ui/Fox';
+import { Mascot } from '../ui/Mascot';
+import { RecurringExpensesCard } from './RecurringCard';
 import { Icon } from '../ui/Icon';
 import { go } from '../ui/router';
 import { useSheets } from '../ui/sheets';
@@ -149,7 +150,7 @@ export function MonthOverview() {
           <div className="small muted">Ton aventure financière du mois{month === current ? '' : month < current ? ' · mois passé' : ' · mois à venir'}</div>
         </div>
         <div className="fox-bubble">
-          <Fox mood={fox.mood} size={64} equipped={data.progress.equipped} animate={data.settings.animations} />
+          <Mascot id={data.settings.mascot} size={64} hello={fox.mood === 'accueil'} animate={data.settings.animations} />
           <div className="speech">{fox.text}</div>
         </div>
         <div className="row-between">
@@ -165,6 +166,8 @@ export function MonthOverview() {
       </section>
 
       <MonthTotals />
+
+      <RecurringExpensesCard />
 
       <ol className="stack" style={{ listStyle: 'none', margin: 0, padding: 0 }} aria-label="Parcours du mois">
         {cards.map((c) => {
@@ -243,7 +246,7 @@ export function IncomesStep() {
         </div>
         {incomes.length === 0 && pending.length === 0 ? (
           <div className="stack center">
-            <Fox mood="accueil" size={80} equipped={data.progress.equipped} animate={data.settings.animations} />
+            <Mascot id={data.settings.mascot} size={80} hello animate={data.settings.animations} />
             <p className="muted" style={{ margin: 0 }}>
               Ce mois n’a pas encore de budget de base. Ajoute ce qui rentre : salaire, prime, aide… Tu peux en ajouter plusieurs.
             </p>

@@ -6,6 +6,7 @@ import type { AppData, Theme } from '../domain/types';
 import { requestPersistence } from '../store/db';
 import { useStore } from '../store/store';
 import { Confirm, Field, PageHead, Sheet, Switch } from '../ui/components';
+import { MascotSettings } from '../ui/Mascot';
 
 const CURRENCIES = [
   ['EUR', 'Euro (€)'],
@@ -103,6 +104,11 @@ export function Profile() {
         <Field label="Prénom ou pseudo (facultatif)">
           <input className="input" value={nick} maxLength={30} onChange={(e) => setNick(e.target.value)} onBlur={() => nick !== s.nickname && set({ nickname: nick.trim() })} />
         </Field>
+      </section>
+
+      <section className="card stack" aria-labelledby="compagnon">
+        <h2 id="compagnon">Mon compagnon</h2>
+        <MascotSettings />
       </section>
 
       <section className="card stack" aria-labelledby="prefs">

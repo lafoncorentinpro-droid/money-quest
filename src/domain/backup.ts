@@ -43,7 +43,9 @@ const MIGRATIONS: Record<number, (d: Record<string, unknown>) => Record<string, 
   1: (d) => {
     const st = (d.settings ?? {}) as Record<string, unknown>;
     return { ...d, settings: { ...st, monthStartDay: 1, theme: st.theme === 'auto' || st.theme === undefined ? 'clair' : st.theme } };
-  }
+  },
+  // 2 -> 3 : ajout du compagnon (absent = choix au prochain lancement), rien à convertir
+  2: (d) => d
 };
 
 export function migrate(raw: Record<string, unknown>): Record<string, unknown> {
@@ -129,6 +131,7 @@ export function validateData(input: unknown): ValidationResult {
   const settings = { ...base.settings, ...(d.settings as object) } as AppData['settings'];
   settings.alerts = { ...base.settings.alerts, ...settings.alerts };
   settings.xpRules = { ...base.settings.xpRules, ...settings.xpRules };
+  if (settings.mascot !== undefined && !['chat', 'loutre', 'lion', 'renard'].includes(settings.mascot)) delete settings.mascot;
   const progress = { ...base.progress, ...(d.progress as object) } as AppData['progress'];
 
   const data: AppData = {

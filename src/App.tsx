@@ -5,7 +5,7 @@ import { Home } from './pages/Home';
 import { Money } from './pages/Money';
 import { Profile } from './pages/Profile';
 import { useStore } from './store/store';
-import { Fox } from './ui/Fox';
+import { Mascot, MascotPicker } from './ui/Mascot';
 import { go, useRoute } from './ui/router';
 import { SheetsProvider, useSheets } from './ui/sheets';
 import { Icon } from './ui/Icon';
@@ -58,7 +58,7 @@ function Celebrate({ c, onClose }: { c: Celebration; onClose: () => void }) {
           ✨ ⭐ ✨
         </div>
         <div style={{ display: 'grid', placeItems: 'center' }}>
-          <Fox mood="celebration" size={110} equipped={data.progress.equipped} animate={data.settings.animations} />
+          <Mascot id={data.settings.mascot} size={110} hello animate={data.settings.animations} />
         </div>
         <h2>{c.title}</h2>
         <p className="muted" style={{ margin: 0 }}>
@@ -165,7 +165,8 @@ function Shell() {
         <Icon name="plus" size={30} strokeWidth={2.4} />
       </button>
       <TabBar current={tab === 'argent' ? 'argent' : 'accueil'} />
-      <Splash animations={data.settings.animations} />
+      {!data.settings.mascot && <MascotPicker />}
+      <Splash animations={data.settings.animations} mascot={data.settings.mascot} />
       {celebration && data.settings.animations && <Celebrate c={celebration} onClose={next} />}
       {celebration && !data.settings.animations && <AutoSkip onSkip={next} />}
     </>

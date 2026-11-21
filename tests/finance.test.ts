@@ -374,8 +374,19 @@ describe('migration v2 : mois du 1er au dernier jour', () => {
     const d = migrate({ schemaVersion: 1, settings: { monthStartDay: 25, currency: 'EUR', theme: 'auto' } }) as { schemaVersion: number; settings: { monthStartDay: number; currency: string; theme: string } };
     expect(d.settings.theme).toBe('clair');
     expect((migrate({ schemaVersion: 1, settings: { theme: 'sombre' } }) as { settings: { theme: string } }).settings.theme).toBe('sombre');
-    expect(d.schemaVersion).toBe(2);
+    expect(d.schemaVersion).toBe(3);
     expect(d.settings.monthStartDay).toBe(1);
     expect(d.settings.currency).toBe('EUR');
+  });
+});
+
+describe('migration v3 : compagnon', () => {
+  it('garde le compagnon valide et ignore une valeur inconnue', async () => {
+    const { parseBackup, makeBackup } = await import('../src/domain/backup');
+    const ok = parseBackup(JSON.stringify(makeBackup({ ...initialData(), settings: { ...initialData().settings, mascot: 'lion' } })));
+    expect(ok.ok && ok.data.settings.mascot).toBe('lion');
+    const bad = parseBackup(JSON.stringify(makeBackup({ ...initialData(), settings: { ...initialData().settings, mascot: 'dragon' as never } })));
+    expect(bad.ok && bad.data.settings.mascot).toBeUndefined();
+    expect(initialData().settings.mascot).toBeUndefined();
   });
 });

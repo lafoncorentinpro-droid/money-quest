@@ -180,6 +180,8 @@ export type Theme = 'auto' | 'clair' | 'sombre';
 
 export interface AppSettings {
   nickname: string;
+  /** Compagnon choisi au premier lancement (absent = écran de choix). */
+  mascot?: MascotId;
   currency: string;
   monthStartDay: number; // 1..28
   theme: Theme;
@@ -237,3 +239,5 @@ export interface CosmeticItem {
   name: string;
   level: number;
 }
+
+export type MascotId = 'chat' | 'loutre' | 'lion' | 'renard';
